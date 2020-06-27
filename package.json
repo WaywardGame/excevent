@@ -1,0 +1,38 @@
+{
+	"name": "excevent",
+	"version": "0.1.0",
+	"license": "MIT",
+	"main": "Excevent.js",
+	"types": "./Excevent.d.ts",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WaywardGame/excevent"
+	},
+	"dependencies": {
+		"@wayward/goodstream": "0.6.8"
+	},
+	"devDependencies": {
+		"@types/chai-as-promised": "7.1.2",
+		"@types/chai": "4.2.11",
+		"@types/del": "4.0.0",
+		"@types/gulp-mocha": "0.0.32",
+		"@types/gulp": "4.0.6",
+		"@types/mocha": "7.0.2",
+		"@types/node": "12.7.3",
+		"chai-as-promised": "7.1.1",
+		"chai": "4.2.0",
+		"chalk": "4.1.0",
+		"even-more-min": "1.0.1",
+		"gulp-mocha": "7.0.2",
+		"gulp-plumber": "1.2.1",
+		"gulp-typescript": "5.0.1",
+		"gulp": "4.0.2",
+		"merge2": "1.4.1",
+		"mocha": "8.0.1",
+		"ts-node": "8.10.2",
+		"tslint-override": "1.0.0",
+		"tslint": "6.1.2",
+		"typescript-tslint-plugin": "0.5.5",
+		"typescript": "4.0.0-beta"
+	}
+}

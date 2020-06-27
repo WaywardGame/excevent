@@ -1,0 +1,31 @@
+{
+    "compilerOptions": {
+        "declaration": true,
+        "target": "esnext",
+        "module": "commonjs",
+        "esModuleInterop": true,
+        "experimentalDecorators": true,
+        "plugins": [
+            {
+                "name": "typescript-tslint-plugin"
+            }
+        ],
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": false,
+        "strictPropertyInitialization": false,
+        "lib": [
+            "esnext",
+            "dom"
+        ],
+        "types": []
+    },
+    "include": [
+        "**/*.ts"
+    ],
+    "exclude": [
+        "../node_modules/*"
+    ]
+}
