@@ -12,7 +12,7 @@ const initBuildFolder = new Series(remove("build"))
 		.pipe("build"));
 
 Task.create("mocha", Pipe.create("tests/**/*.ts", { read: false })
-	.pipe(() => mocha({ reporter: "even-more-min", require: ["ts-node/register"] }))
+	.pipe(() => mocha({ reporter: "even-more-min", require: ["ts-node/register"] } as any))
 	.on("error", () => process.exitCode = 1));
 
 

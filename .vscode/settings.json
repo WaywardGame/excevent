@@ -1,3 +1,4 @@
 {
-	"typescript.format.insertSpaceBeforeFunctionParenthesis": true
+	"typescript.format.insertSpaceBeforeFunctionParenthesis": true,
+	"typescript.tsdk": "node_modules\\typescript\\lib"
 }
