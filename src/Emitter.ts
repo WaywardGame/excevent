@@ -1,16 +1,128 @@
-// import PriorityList from "./PriorityList";
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 
-// type EventRecord = Record<string, (...args: any[]) => any>;
-// type EventParameters<EVENTS extends EventRecord, EVENT extends keyof EVENTS = keyof EVENTS> = Parameters<EVENTS[EVENT]>;
-// type EventReturn<EVENTS extends EventRecord, EVENT extends keyof EVENTS = keyof EVENTS> = ReturnType<EVENTS[EVENT]>;
-// type EventHandler<EVENTS extends EventRecord, EVENT extends keyof EVENTS = keyof EVENTS> = (...parameters: Parameters<EVENTS[EVENT]>) => ReturnType<EVENTS[EVENT]>;
+import { EventHandler, EventHandlerList, EventParameters, EventReturn, EventSubscriptions, IEventApi, IEventHostInternal } from "./IExcevent";
+import PriorityList from "./PriorityList";
 
+// export type EventRecord = Record<string, (...args: any[]) => any>;
+export type EventList<EVENTS> = (keyof EVENTS) | (keyof EVENTS)[];
+export type EventUnion<EVENTS, EVENT extends EventList<EVENTS>> = EVENT extends any[] ? EVENT[number] : EVENT;
+type CoerceVoidToUndefined<T> = T extends void ? undefined : T;
 
-// export class Emitter<EVENTS extends EventRecord> {
+type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 
-// 	private subscriptions: Record<keyof EVENTS, PriorityList<EventHandler<EVENTS>>>;
+class EventEmitter<HOST, EVENTS> {
 
-// 	public emit<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
-// 		const subscriptions = this.subscriptions[event];
-// 	}
-// }
+	private subscriptions: EventSubscriptions<HOST, EVENTS> = {};
+
+	public constructor (private readonly host: HOST) { }
+
+	public emit<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
+		const handlerLists = this.getHandlerLists(event);
+		if (handlerLists.length === 0)
+			return [];
+
+		const api = this.createApi(event);
+		return PriorityList.mapAll(handlerLists, (api, handler) => {
+			(api as Mutable<typeof api>).index++;
+			return handler(api, ...args);
+		}, api);
+	}
+
+	public query<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
+		const handlerLists = this.getHandlerLists(event);
+		if (handlerLists.length === 0)
+			return undefined;
+
+		const api = this.createApi(event);
+
+		let result: CoerceVoidToUndefined<EventReturn<EVENTS, EVENT>> | undefined;
+		PriorityList.mapAll(handlerLists, (api, handler) => {
+			(api as Mutable<typeof api>).index++;
+			const output = handler(api, ...args);
+			if (output !== undefined) {
+				api.break = true;
+				result = output;
+			}
+
+			return output;
+		}, api);
+
+		return result;
+	}
+
+	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, handler: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...additionalHandlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) {
+		if (typeof priority !== "number") {
+			handlers.push(priority);
+			priority = 0;
+		}
+
+		for (const event of Array.isArray(events) ? events : [events])
+			this.getSubscriptionsForEvent(event)
+				.addMultiple(priority, ...handlers);
+
+		return this;
+	}
+
+	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, handler: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...additionalHandlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) {
+		if (typeof priority !== "number") {
+			handlers.push(priority);
+			priority = 0;
+		}
+
+		for (const event of Array.isArray(events) ? events : [events])
+			this.getSubscriptionsForEvent(event, false)
+				?.removeMultiple(priority, ...handlers);
+
+		return this;
+	}
+
+	public async waitFor<EVENT extends EventList<EVENTS>> (events: EVENT, priority = 0) {
+		return new Promise<EventParameters<EVENTS, EventUnion<EVENTS, EVENT>>>(resolve => {
+			const realHandler = (host: any, ...args: any[]): any => {
+				this.unsubscribe(events, priority, realHandler);
+				resolve(args as any);
+			};
+
+			this.subscribe(events, priority, realHandler);
+		});
+	}
+
+	private getSubscriptionsForEvent<EVENT extends keyof EVENTS> (event: EVENT, create = true) {
+		let subscriptions = this.subscriptions[event];
+		if (!subscriptions && create)
+			subscriptions = this.subscriptions[event] = new PriorityList();
+
+		return subscriptions as EventHandlerList<HOST, EVENTS, EventUnion<EVENTS, EVENT>>;
+	}
+
+	private getHandlerLists (event: keyof EVENTS) {
+		const subscriptions = this.subscriptions[event];
+		const emitTo: EventHandlerList<HOST, EVENTS>[] = subscriptions === undefined ? [] : [subscriptions];
+		for (const { [event]: otherSubscriptionsOfEvent } of IEventHostInternal.getSubscriptions<EVENTS>(this.host))
+			if (otherSubscriptionsOfEvent)
+				emitTo.push(otherSubscriptionsOfEvent);
+
+		return emitTo;
+	}
+
+	private createApi<EVENT extends keyof EVENTS> (event: EVENT): IEventApi<HOST, EVENTS, EVENT> {
+		return {
+			host: this.host,
+			event,
+			index: -1,
+			break: false,
+		};
+	}
+}
+
+namespace EventEmitter {
+	export class Host<EVENTS> {
+		public readonly event = new EventEmitter<this, EVENTS>(this);
+	}
+}
+
+export default EventEmitter;

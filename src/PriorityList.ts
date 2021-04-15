@@ -1,12 +1,19 @@
+export interface IPriorityListMapApi {
+	break: boolean;
+}
+
 export default class PriorityList<T> {
 
-	public static forEachAll<T> (lists: PriorityList<T>[], consumer: (value: T) => any) {
+	public static mapAll<T, RETURN> (lists: PriorityList<T>[], consumer: (api: IPriorityListMapApi, value: T) => RETURN): RETURN[];
+	public static mapAll<T, RETURN, API extends IPriorityListMapApi> (lists: PriorityList<T>[], consumer: (api: API, value: T) => RETURN, api: API): RETURN[];
+	public static mapAll<T, RETURN> (lists: PriorityList<T>[], consumer: (api: IPriorityListMapApi, value: T) => RETURN, api: IPriorityListMapApi = { break: false }) {
 		interface IIndexedList {
 			list: PriorityList<T>;
 			index: number;
 			done: boolean;
 		}
 
+		const result: RETURN[] = [];
 		const listCount = lists.length;
 		const indexedLists: IIndexedList[] = lists.map(list => ({ list, index: 0, done: false }));
 		let done = 0;
@@ -30,19 +37,92 @@ export default class PriorityList<T> {
 				done++;
 			}
 
-			for (const value of list.map.get(highestPriority!)!)
-				consumer(value);
+			for (const value of list.listsByPriority.get(highestPriority!)!) {
+				result.push(consumer(api, value));
+				if (api.break) {
+					return result;
+				}
+			}
 
 			if (done === listCount)
 				break;
 		}
+
+		return result;
 	}
 
-	private readonly map = new Map<number, Set<T>>();
+	private readonly listsByPriority = new Map<number, Set<T>>();
 	private readonly priorities: number[] = [];
 
 	public add (value: T, priority = 0) {
-		const map = this.map;
+		this.getPriority(priority).add(value);
+		return this;
+	}
+
+	public addMultiple (priority = 0, ...values: T[]) {
+		const list = this.getPriority(priority);
+		for (const value of values)
+			list.add(value);
+
+		return this;
+	}
+
+	public remove (value: T, priority = 0) {
+		const list = this.listsByPriority.get(priority);
+		if (list) {
+			list.delete(value);
+			if (list.size === 0)
+				this.deletePriority(priority);
+		}
+
+		return this;
+	}
+
+	public removeMultiple (priority = 0, ...values: T[]) {
+		const list = this.listsByPriority.get(priority);
+		if (list) {
+			for (const value of values)
+				list.delete(value);
+
+			if (list.size === 0)
+				this.deletePriority(priority);
+		}
+
+		return this;
+	}
+
+	public clear () {
+		this.listsByPriority.clear();
+		this.priorities.splice(0, Infinity);
+		return this;
+	}
+
+	public has (value: T, priority = 0) {
+		return this.listsByPriority.get(priority)?.has(value) ?? false;
+	}
+
+	public map<RETURN> (consumer: (api: IPriorityListMapApi, value: T) => RETURN): RETURN[];
+	public map<RETURN, API extends IPriorityListMapApi> (consumer: (api: API, value: T) => RETURN, api: API): RETURN[];
+	public map<RETURN> (consumer: (api: IPriorityListMapApi, value: T) => RETURN, api: IPriorityListMapApi = { break: false }) {
+		const result: RETURN[] = [];
+		for (const priority of this.priorities) {
+			for (const value of this.listsByPriority.get(priority)!) {
+				result.push(consumer(api, value));
+				if (api.break) {
+					return result;
+				}
+			}
+		}
+
+		return result;
+	}
+
+	public getPriorities (): readonly number[] {
+		return this.priorities;
+	}
+
+	private getPriority (priority: number) {
+		const map = this.listsByPriority;
 		let list = map.get(priority);
 		if (!list) {
 			map.set(priority, list = new Set());
@@ -50,44 +130,13 @@ export default class PriorityList<T> {
 			priorities.splice(sortedIndex(priorities, priority) + 1, 0, priority);
 		}
 
-		list.add(value);
-		return this;
+		return list;
 	}
 
-	public remove (value: T, priority = 0) {
-		const list = this.map.get(priority);
-		if (list) {
-			list.delete(value);
-			if (list.size === 0) {
-				this.map.delete(priority);
-				const priorities = this.priorities;
-				priorities.splice(sortedIndex(priorities, priority), 1);
-			}
-		}
-
-		return this;
-	}
-
-	public clear () {
-		this.map.clear();
-		this.priorities.splice(0, Infinity);
-		return this;
-	}
-
-	public has (value: T, priority = 0) {
-		return this.map.get(priority)?.has(value) ?? false;
-	}
-
-	public forEach (consumer: (value: T) => any) {
-		for (const priority of this.priorities)
-			for (const value of this.map.get(priority)!)
-				consumer(value);
-
-		return this;
-	}
-
-	public getPriorities (): readonly number[] {
-		return this.priorities;
+	private deletePriority (priority: number) {
+		this.listsByPriority.delete(priority);
+		const priorities = this.priorities;
+		priorities.splice(sortedIndex(priorities, priority), 1);
 	}
 }
 
