@@ -1,6 +1,5 @@
-import { EventHandler, EventHostOrClass, Events, EventSubscriptions, IEventHostInternal, SYMBOL_EVENT_BUS_SUBSCRIPTIONS } from "./IExcevent";
+import { EventHandler, EventHostOrClass, Events, EventSubscriptions, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
 
-// type Class<T> = { new(...args: any[]): T };
 type AnyFunction = (...args: any[]) => any;
 
 export default class Excevent<BUSES extends Record<string | number, EventHostOrClass<any>>> {
@@ -38,9 +37,22 @@ export default class Excevent<BUSES extends Record<string | number, EventHostOrC
 	public getEventHandlerDecorator () {
 		type ResolveEvents<ON extends keyof BUSES | EventHostOrClass<Events<BUSES[keyof BUSES]>>> =
 			ON extends keyof BUSES ? Events<BUSES[ON]> : Events<ON>;
-		function EventHandler<ON extends keyof BUSES | EventHostOrClass<Events<BUSES[keyof BUSES]>>, EVENT extends keyof ResolveEvents<ON>> (on: ON, event: EVENT, priority = 0) {
-			return <T extends { [key in P]: AnyFunction }, P extends string | number | symbol> (host: T, property: P, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ResolveEvents<ON>, EVENT>>) => {
-				// 
+
+		function EventHandler<ON extends keyof BUSES | EventHostOrClass<Events<BUSES[keyof BUSES]>>, EVENT extends keyof ResolveEvents<ON>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, ResolveEvents<ON>, EVENT>>) => void {
+			return <T extends { [key in P]: AnyFunction }, P extends string | number> (subscriberClass: T, property: P, descriptor: TypedPropertyDescriptor<any>) => {
+				const subscriber = IEventSubscriber.getSubscriber(subscriberClass);
+				const subscriptions = subscriber[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!;
+				let subscriptionsOfProperty = subscriptions[property as string];
+				if (!subscriptionsOfProperty)
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+					subscriptionsOfProperty = subscriptions[property as string] = new Map();
+
+				let subscriptionsOfHost = subscriptionsOfProperty.get(on);
+				if (!subscriptionsOfHost)
+					subscriptionsOfProperty.set(on, subscriptionsOfHost = {});
+
+				EventSubscriptions.get(subscriptionsOfHost, event)
+					.add(event as string, priority);
 			};
 		}
 

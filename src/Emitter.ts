@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
-import { EventHandler, EventHandlerList, EventParameters, EventReturn, EventSubscriptions, IEventApi, IEventHostInternal } from "./IExcevent";
+import { EventHandler, EventHandlerList, EventList, EventParameters, EventReturn, EventSubscriptions, EventUnion, IEventApi, IEventHostInternal } from "./IExcevent";
 import PriorityList from "./PriorityList";
 
 // export type EventRecord = Record<string, (...args: any[]) => any>;
-export type EventList<EVENTS> = (keyof EVENTS) | (keyof EVENTS)[];
-export type EventUnion<EVENTS, EVENT extends EventList<EVENTS>> = EVENT extends any[] ? EVENT[number] : EVENT;
 type CoerceVoidToUndefined<T> = T extends void ? undefined : T;
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
@@ -59,7 +57,7 @@ class EventEmitter<HOST, EVENTS> {
 		}
 
 		for (const event of Array.isArray(events) ? events : [events])
-			this.getSubscriptionsForEvent(event)
+			EventSubscriptions.get(this.subscriptions, event)
 				.addMultiple(priority, ...handlers);
 
 		return this;
@@ -74,7 +72,7 @@ class EventEmitter<HOST, EVENTS> {
 		}
 
 		for (const event of Array.isArray(events) ? events : [events])
-			this.getSubscriptionsForEvent(event, false)
+			EventSubscriptions.get(this.subscriptions, event, false)
 				?.removeMultiple(priority, ...handlers);
 
 		return this;
@@ -89,14 +87,6 @@ class EventEmitter<HOST, EVENTS> {
 
 			this.subscribe(events, priority, realHandler);
 		});
-	}
-
-	private getSubscriptionsForEvent<EVENT extends keyof EVENTS> (event: EVENT, create = true) {
-		let subscriptions = this.subscriptions[event];
-		if (!subscriptions && create)
-			subscriptions = this.subscriptions[event] = new PriorityList();
-
-		return subscriptions as EventHandlerList<HOST, EVENTS, EventUnion<EVENTS, EVENT>>;
 	}
 
 	private getHandlerLists (event: keyof EVENTS) {
