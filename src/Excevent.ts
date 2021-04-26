@@ -1,29 +1,77 @@
-import { EventHandler, EventHostOrClass, Events, EventSubscriptions, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
+import { EventHandler, EventHostOrClass, Events, EventSubscriptionRegistrations, EventSubscriptions, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIBER_INSTANCES, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
+import PriorityList from "./PriorityList";
 
 type AnyFunction = (...args: any[]) => any;
+type Class<T> = { new(...args: any[]): T };
+type EventBusOrHost<BUSES> = keyof BUSES | EventHostOrClass<Events<BUSES[keyof BUSES]>>;
+type ResolveEvents<BUSES, ON extends EventBusOrHost<BUSES>> =
+	ON extends keyof BUSES ? Events<BUSES[ON]> : Events<ON>;
 
-export default class Excevent<BUSES extends Record<string | number, EventHostOrClass<any>>> {
+interface IBus<BUSES, BUS extends keyof BUSES> {
+	host?: IEventHostInternal<Events<BUSES[BUS]>>;
+	subscriptions: EventSubscriptions<BUSES[BUS], Events<BUSES[BUS]>>;
+}
 
-	private buses: {
-		[BUS in keyof BUSES]?: {
-			host: IEventHostInternal<Events<BUSES[BUS]>>;
-			subscriptions: EventSubscriptions<BUSES[BUS], Events<BUSES[BUS]>>;
+export default class Excevent<BUSES> {
+
+	private buses: { [BUS in keyof BUSES]?: IBus<BUSES, BUS> } = {};
+
+	public subscribe (instance: any) {
+		if (!instance)
+			return;
+
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+		const cls = instance.constructor as Class<any>;
+		const subscriber = IEventSubscriber.getSubscriber(cls);
+		if (subscriber[SYMBOL_SUBSCRIBER_INSTANCES]!.has(instance))
+			return;
+
+		subscriber[SYMBOL_SUBSCRIBER_INSTANCES]!.add(instance);
+
+		type AllEvents = Events<BUSES[keyof BUSES]>;
+		const subscriptions = IEventSubscriber.getRegisteredSubscriptions(cls);
+		for (const subscriptionsByProperty of subscriptions) {
+			for (const [property, subscriptionsByHost] of Object.entries(subscriptionsByProperty)) {
+				for (const [host, subscriptions] of subscriptionsByHost as Map<EventBusOrHost<BUSES>, EventSubscriptionRegistrations<AllEvents>>) {
+					let subscribeTo: EventSubscriptions<BUSES[keyof BUSES], AllEvents>;
+					if (typeof host !== "object") {
+						// event bus
+						const bus = this.getBus(host as keyof BUSES);
+						subscribeTo = bus.subscriptions;
+
+					} else {
+						// host class or host
+						const hostInternal = IEventHostInternal.getHost<AllEvents>(host);
+						subscribeTo = hostInternal[SYMBOL_SUBSCRIPTIONS];
+					}
+
+					for (const [event, priorities] of Object.entries<PriorityList<string> | undefined>(subscriptions)) {
+						for (const priority of priorities!.getPriorities()) {
+							EventSubscriptions.get(subscribeTo, event as keyof AllEvents)
+								.add([instance, property], priority);
+						}
+					}
+				}
+			}
 		}
-	} = {};
+	}
 
 	public registerBus<BUS extends keyof BUSES> (bus: BUS, host: BUSES[BUS]) {
 		this.deregisterBus(bus);
 
 		const h = IEventHostInternal.getHost<Events<BUSES[BUS]>>(host);
-		let registeredBus = this.buses[bus];
-		if (!registeredBus)
-			registeredBus = this.buses[bus] = {
-				host: h,
-				subscriptions: {},
-			};
+		const registeredBus = this.getBus(bus);
 
 		// the class needs to know that it's been assigned as this event bus
 		h[SYMBOL_EVENT_BUS_SUBSCRIPTIONS][bus as string | number] = registeredBus.subscriptions;
+	}
+
+	private getBus<BUS extends keyof BUSES> (bus: BUS): IBus<BUSES, BUS> {
+		let registeredBus = this.buses[bus];
+		if (!registeredBus)
+			registeredBus = this.buses[bus] = { subscriptions: {} };
+
+		return registeredBus;
 	}
 
 	public deregisterBus<BUS extends keyof BUSES> (bus: BUS) {
@@ -31,16 +79,14 @@ export default class Excevent<BUSES extends Record<string | number, EventHostOrC
 		if (!registeredBus)
 			return;
 
-		delete registeredBus.host[SYMBOL_EVENT_BUS_SUBSCRIPTIONS][bus as string | number];
+		delete registeredBus.host?.[SYMBOL_EVENT_BUS_SUBSCRIPTIONS][bus as string | number];
 	}
 
 	public getEventHandlerDecorator () {
-		type ResolveEvents<ON extends keyof BUSES | EventHostOrClass<Events<BUSES[keyof BUSES]>>> =
-			ON extends keyof BUSES ? Events<BUSES[ON]> : Events<ON>;
 
-		function EventHandler<ON extends keyof BUSES | EventHostOrClass<Events<BUSES[keyof BUSES]>>, EVENT extends keyof ResolveEvents<ON>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, ResolveEvents<ON>, EVENT>>) => void {
+		function EventHandler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof ResolveEvents<BUSES, ON>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, ResolveEvents<BUSES, ON>, EVENT>>) => void {
 			return <T extends { [key in P]: AnyFunction }, P extends string | number> (subscriberClass: T, property: P, descriptor: TypedPropertyDescriptor<any>) => {
-				const subscriber = IEventSubscriber.getSubscriber(subscriberClass);
+				const subscriber = IEventSubscriber.getSubscriber(subscriberClass.constructor as Class<T>);
 				const subscriptions = subscriber[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!;
 				let subscriptionsOfProperty = subscriptions[property as string];
 				if (!subscriptionsOfProperty)

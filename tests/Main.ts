@@ -1,6 +1,7 @@
 import chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import Emitter from "../build/Emitter";
+import { default as Emitter, default as EventEmitter } from "../build/Emitter";
+import Excevent from "../build/Excevent";
 import { IEventApi } from "../build/IExcevent";
 import PriorityList from "../build/PriorityList";
 
@@ -366,4 +367,62 @@ describe("Emitter", () => {
 		});
 	});
 
+});
+
+describe("excevent", () => {
+	enum EventBus {
+		Foo,
+		Bar,
+	}
+
+	interface IEventBuses {
+		[EventBus.Foo]: typeof Foo,
+		[EventBus.Bar]: typeof Bar,
+	}
+
+	const excevent = new Excevent<IEventBuses>();
+	const EventHandler = excevent.getEventHandlerDecorator();
+
+	interface IFooEvents {
+		test (): any;
+		test3 (): any;
+		test2 (a: number, b: string, ...c: number[]): boolean;
+	}
+
+	class Foo extends EventEmitter.Host<IFooEvents> { }
+	excevent.registerBus(EventBus.Foo, Foo);
+
+	interface IBarEvents {
+		test7 (): any;
+		test6 (): any;
+		test5 (a: number, b: string, ...c: number[]): boolean;
+	}
+
+	class Bar extends EventEmitter.Host<IBarEvents> { }
+	excevent.registerBus(EventBus.Bar, Bar);
+
+	it("EventHandler", () => {
+		let hitFooTest = 0;
+
+		class Test {
+			@EventHandler(EventBus.Foo, "test")
+			protected onFooTest () {
+				hitFooTest++;
+			}
+		}
+
+		const test = new Test();
+		excevent.subscribe(test);
+
+		new Foo().event.emit("test");
+		new Foo().event.emit("test");
+		expect(hitFooTest).eq(2);
+
+		// excevent.unsubscribe(test);
+
+		// hitFooTest = 0;
+		// new Foo().event.emit("test");
+		// new Foo().event.emit("test");
+		// expect(hitFooTest).eq(2);
+	});
 });

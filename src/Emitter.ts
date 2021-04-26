@@ -22,7 +22,14 @@ class EventEmitter<HOST, EVENTS> {
 		const api = this.createApi(event);
 		return PriorityList.mapAll(handlerLists, (api, handler) => {
 			(api as Mutable<typeof api>).index++;
-			return handler(api, ...args);
+
+			if (!Array.isArray(handler))
+				return handler(api, ...args);
+
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+			const [subscriber, property] = handler;
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+			return subscriber[property](api, ...args);
 		}, api);
 	}
 
@@ -33,10 +40,21 @@ class EventEmitter<HOST, EVENTS> {
 
 		const api = this.createApi(event);
 
-		let result: CoerceVoidToUndefined<EventReturn<EVENTS, EVENT>> | undefined;
+		type Output = CoerceVoidToUndefined<EventReturn<EVENTS, EVENT>>;
+		let result: Output | undefined;
 		PriorityList.mapAll(handlerLists, (api, handler) => {
 			(api as Mutable<typeof api>).index++;
-			const output = handler(api, ...args);
+			let output: Output;
+			if (Array.isArray(handler)) {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+				const [subscriber, property] = handler;
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+				output = subscriber[property](api, ...args);
+
+			} else {
+				output = handler(api, ...args);
+			}
+
 			if (output !== undefined) {
 				api.break = true;
 				result = output;
