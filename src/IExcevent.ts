@@ -1,28 +1,47 @@
 import EventEmitter from "./Emitter";
-import PriorityList, { IPriorityListMapApi } from "./PriorityList";
+import PriorityMap, { IPriorityListMapApi } from "./PriorityMap";
 
 export type EventDefinition<EVENTS, EVENT extends keyof EVENTS> = Extract<EVENTS[EVENT], (...args: any[]) => any>;
 export type EventParameters<EVENTS, EVENT extends keyof EVENTS = keyof EVENTS> = Parameters<EventDefinition<EVENTS, EVENT>>;
 export type EventReturn<EVENTS, EVENT extends keyof EVENTS = keyof EVENTS> = ReturnType<EventDefinition<EVENTS, EVENT>>;
 export type EventHandler<HOST, EVENTS, EVENT extends keyof EVENTS = keyof EVENTS> = (api: IEventApi<HOST, EVENTS, EVENT>, ...parameters: EventParameters<EVENTS, EVENT>) => EventReturn<EVENTS, EVENT>;
-export type EventHandlerReference<HOST, EVENTS, EVENT extends keyof EVENTS = keyof EVENTS, SUBSCRIBER extends { [key in HANDLER]: EventHandler<HOST, EVENTS, EVENT> } = any, HANDLER extends keyof SUBSCRIBER = keyof SUBSCRIBER> = [SUBSCRIBER, HANDLER];
-export type EventHandlerList<HOST, EVENTS, EVENT extends keyof EVENTS = keyof EVENTS> = PriorityList<EventHandler<HOST, EVENTS, EVENT> | EventHandlerReference<HOST, EVENTS, EVENT>>;
+export type EventHandlerReference<HOST, EVENTS, EVENT extends keyof EVENTS = keyof EVENTS, SUBSCRIBER extends { [key in HANDLER]: EventHandler<HOST, EVENTS, EVENT> } = any, HANDLER extends keyof SUBSCRIBER = keyof SUBSCRIBER> = { [key in HANDLER]: Set<SUBSCRIBER> };
+
+export interface IEventHandlersByType<HOST, EVENTS, EVENT extends keyof EVENTS = keyof EVENTS> {
+	handlers: Set<EventHandler<HOST, EVENTS, EVENT>>;
+	references: EventHandlerReference<HOST, EVENTS, EVENT>;
+}
+
+export type EventHandlersByPriority<HOST, EVENTS, EVENT extends keyof EVENTS = keyof EVENTS> = PriorityMap<IEventHandlersByType<HOST, EVENTS, EVENT>>;
 export type EventList<EVENTS> = (keyof EVENTS) | (keyof EVENTS)[];
 export type EventUnion<EVENTS, EVENT extends EventList<EVENTS>> = EVENT extends any[] ? EVENT[number] : EVENT;
 
-export type EventSubscriptions<HOST, EVENTS> = { [EVENT in keyof EVENTS]?: EventHandlerList<HOST, EVENTS, EVENT> };
-export type EventSubscriptionRegistrations<EVENTS> = { [EVENT in keyof EVENTS]?: PriorityList<string> };
+export type EventSubscriptions<HOST, EVENTS> = { [EVENT in keyof EVENTS]?: EventHandlersByPriority<HOST, EVENTS, EVENT> };
+
+export type EventSubscriptionRegistrations<EVENTS> = { [EVENT in keyof EVENTS]?: Set<number> };
 export namespace EventSubscriptions {
-	export function get<HOST, EVENTS, EVENT extends keyof EVENTS> (subscriptions: EventSubscriptions<HOST, EVENTS>, event: EVENT, create?: false): EventHandlerList<HOST, EVENTS, EventUnion<EVENTS, EVENT>>;
-	export function get<HOST, EVENTS, EVENT extends keyof EVENTS> (subscriptions: EventSubscriptionRegistrations<EVENTS>, event: EVENT, create?: false): PriorityList<string>;
+	export function get<HOST, EVENTS, EVENT extends keyof EVENTS> (subscriptions: EventSubscriptions<HOST, EVENTS>, event: EVENT, create?: false): EventHandlersByPriority<HOST, EVENTS, EventUnion<EVENTS, EVENT>>;
 	export function get (subscriptions: EventSubscriptions<any, any> | EventSubscriptionRegistrations<any>, event: any, create = true) {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 		let subscriptionsByEvent = subscriptions[event];
 		if (!subscriptionsByEvent && create)
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-			subscriptionsByEvent = subscriptions[event] = new PriorityList() as any;
+			subscriptionsByEvent = subscriptions[event] = new PriorityMap();
 
 		return subscriptionsByEvent;
+	}
+
+	export function getPriority<HOST, EVENTS, EVENT extends keyof EVENTS> (handlers: EventHandlersByPriority<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, priority: number) {
+		let result = handlers.get(priority);
+		if (result)
+			return result;
+
+		handlers.set(result = {
+			handlers: new Set(),
+			references: {},
+		}, priority);
+
+		return result;
 	}
 }
 

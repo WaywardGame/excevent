@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
-import { EventHandler, EventHandlerList, EventList, EventParameters, EventReturn, EventSubscriptions, EventUnion, IEventApi, IEventHostInternal } from "./IExcevent";
-import PriorityList from "./PriorityList";
+import { EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, EventSubscriptions, EventUnion, IEventApi, IEventHostInternal } from "./IExcevent";
+import PriorityMap from "./PriorityMap";
 
 // export type EventRecord = Record<string, (...args: any[]) => any>;
 type CoerceVoidToUndefined<T> = T extends void ? undefined : T;
@@ -15,52 +15,73 @@ class EventEmitter<HOST, EVENTS> {
 	public constructor (private readonly host: HOST) { }
 
 	public emit<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
-		const handlerLists = this.getHandlerLists(event);
-		if (handlerLists.length === 0)
+		const handlersByPriority = this.getHandlerLists(event);
+		if (handlersByPriority.length === 0)
 			return [];
 
 		const api = this.createApi(event);
-		return PriorityList.mapAll(handlerLists, (api, handler) => {
-			(api as Mutable<typeof api>).index++;
+		return PriorityMap.mapAll(handlersByPriority, (api, handlersByType) => {
+			const mutableApi = (api as Mutable<typeof api>);
 
-			if (!Array.isArray(handler))
-				return handler(api, ...args);
+			const result: any[] = [];
+			for (const handler of handlersByType.handlers) {
+				mutableApi.index++;
+				result.push(handler(api, ...args));
+				if (api.break)
+					return result;
+			}
 
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-			const [subscriber, property] = handler;
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-			return subscriber[property](api, ...args);
-		}, api);
+			for (const [property, subscribers] of Object.entries(handlersByType.references)) {
+				for (const subscriber of subscribers) {
+					mutableApi.index++;
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+					result.push(subscriber[property](api, ...args));
+					if (api.break)
+						return result;
+				}
+			}
+
+			return result;
+		}, api)
+			.flat();
 	}
 
 	public query<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
-		const handlerLists = this.getHandlerLists(event);
-		if (handlerLists.length === 0)
+		const handlersByPriority = this.getHandlerLists(event);
+		if (handlersByPriority.length === 0)
 			return undefined;
 
 		const api = this.createApi(event);
 
 		type Output = CoerceVoidToUndefined<EventReturn<EVENTS, EVENT>>;
 		let result: Output | undefined;
-		PriorityList.mapAll(handlerLists, (api, handler) => {
-			(api as Mutable<typeof api>).index++;
-			let output: Output;
-			if (Array.isArray(handler)) {
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-				const [subscriber, property] = handler;
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-				output = subscriber[property](api, ...args);
+		PriorityMap.mapAll(handlersByPriority, (api, handlersByType) => {
+			const mutableApi = (api as Mutable<typeof api>);
 
-			} else {
-				output = handler(api, ...args);
+			for (const handler of handlersByType.handlers) {
+				mutableApi.index++;
+				const output = handler(api, ...args);
+				if (output !== undefined) {
+					api.break = true;
+					result = output;
+					return;
+				}
 			}
 
-			if (output !== undefined) {
-				api.break = true;
-				result = output;
+			for (const [property, subscribers] of Object.entries(handlersByType.references)) {
+				for (const subscriber of subscribers) {
+					mutableApi.index++;
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+					const output = subscriber[property](api, ...args);
+					if (output !== undefined) {
+						api.break = true;
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+						result = output;
+						return;
+					}
+				}
 			}
 
-			return output;
 		}, api);
 
 		return result;
@@ -74,9 +95,12 @@ class EventEmitter<HOST, EVENTS> {
 			priority = 0;
 		}
 
-		for (const event of Array.isArray(events) ? events : [events])
-			EventSubscriptions.get(this.subscriptions, event)
-				.addMultiple(priority, ...handlers);
+		for (const event of Array.isArray(events) ? events : [events]) {
+			const subscriptions = EventSubscriptions.get(this.subscriptions, event);
+			const subscribedHandlers = EventSubscriptions.getPriority(subscriptions, priority).handlers;
+			for (const handler of handlers)
+				subscribedHandlers.add(handler);
+		}
 
 		return this;
 	}
@@ -89,9 +113,13 @@ class EventEmitter<HOST, EVENTS> {
 			priority = 0;
 		}
 
-		for (const event of Array.isArray(events) ? events : [events])
-			EventSubscriptions.get(this.subscriptions, event, false)
-				?.removeMultiple(priority, ...handlers);
+		for (const event of Array.isArray(events) ? events : [events]) {
+			const subscriptions = EventSubscriptions.get(this.subscriptions, event, false);
+			const subscribedHandlers = subscriptions.get(priority)?.handlers;
+			if (subscribedHandlers)
+				for (const handler of handlers)
+					subscribedHandlers.delete(handler);
+		}
 
 		return this;
 	}
@@ -109,7 +137,7 @@ class EventEmitter<HOST, EVENTS> {
 
 	private getHandlerLists (event: keyof EVENTS) {
 		const subscriptions = this.subscriptions[event];
-		const emitTo: EventHandlerList<HOST, EVENTS>[] = subscriptions === undefined ? [] : [subscriptions];
+		const emitTo: EventHandlersByPriority<HOST, EVENTS>[] = subscriptions === undefined ? [] : [subscriptions];
 		for (const { [event]: otherSubscriptionsOfEvent } of IEventHostInternal.getSubscriptions<EVENTS>(this.host))
 			if (otherSubscriptionsOfEvent)
 				emitTo.push(otherSubscriptionsOfEvent);

@@ -1,5 +1,4 @@
 import { EventHandler, EventHostOrClass, Events, EventSubscriptionRegistrations, EventSubscriptions, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIBER_INSTANCES, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
-import PriorityList from "./PriorityList";
 
 type AnyFunction = (...args: any[]) => any;
 type Class<T> = { new(...args: any[]): T };
@@ -45,10 +44,14 @@ export default class Excevent<BUSES> {
 						subscribeTo = hostInternal[SYMBOL_SUBSCRIPTIONS];
 					}
 
-					for (const [event, priorities] of Object.entries<PriorityList<string> | undefined>(subscriptions)) {
-						for (const priority of priorities!.getPriorities()) {
-							EventSubscriptions.get(subscribeTo, event as keyof AllEvents)
-								.add([instance, property], priority);
+					for (const [event, priorities] of Object.entries<Set<number> | undefined>(subscriptions)) {
+						for (const priority of priorities!) {
+							const subscriptions = EventSubscriptions.get(subscribeTo, event as keyof AllEvents);
+							const subscribedReferences = EventSubscriptions.getPriority(subscriptions, +priority).references;
+							let subscribedInProperty = subscribedReferences[property];
+							if (!subscribedInProperty)
+								subscribedInProperty = subscribedReferences[property] = new Set();
+							subscribedInProperty.add(instance);
 						}
 					}
 				}
@@ -97,8 +100,11 @@ export default class Excevent<BUSES> {
 				if (!subscriptionsOfHost)
 					subscriptionsOfProperty.set(on, subscriptionsOfHost = {});
 
-				EventSubscriptions.get(subscriptionsOfHost, event)
-					.add(event as string, priority);
+				let priorities = subscriptionsOfHost[event];
+				if (!priorities)
+					priorities = subscriptionsOfHost[event] = new Set();
+
+				priorities.add(priority);
 			};
 		}
 
