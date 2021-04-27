@@ -53,6 +53,10 @@ export default class PriorityMap<T> {
 	private readonly internalMap = new Map<number, T>();
 	private readonly priorities: number[] = [];
 
+	public hasAny () {
+		return this.priorities.length > 0;
+	}
+
 	public get (priority = 0) {
 		return this.internalMap.get(priority);
 	}

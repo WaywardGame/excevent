@@ -20,7 +20,8 @@ export type EventSubscriptions<HOST, EVENTS> = { [EVENT in keyof EVENTS]?: Event
 
 export type EventSubscriptionRegistrations<EVENTS> = { [EVENT in keyof EVENTS]?: Set<number> };
 export namespace EventSubscriptions {
-	export function get<HOST, EVENTS, EVENT extends keyof EVENTS> (subscriptions: EventSubscriptions<HOST, EVENTS>, event: EVENT, create?: false): EventHandlersByPriority<HOST, EVENTS, EventUnion<EVENTS, EVENT>>;
+	export function get<HOST, EVENTS, EVENT extends keyof EVENTS> (subscriptions: EventSubscriptions<HOST, EVENTS>, event: EVENT): EventHandlersByPriority<HOST, EVENTS, EventUnion<EVENTS, EVENT>>;
+	export function get<HOST, EVENTS, EVENT extends keyof EVENTS> (subscriptions: EventSubscriptions<HOST, EVENTS>, event: EVENT, create: false): EventHandlersByPriority<HOST, EVENTS, EventUnion<EVENTS, EVENT>> | undefined;
 	export function get (subscriptions: EventSubscriptions<any, any> | EventSubscriptionRegistrations<any>, event: any, create = true) {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 		let subscriptionsByEvent = subscriptions[event];

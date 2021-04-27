@@ -11,6 +11,12 @@ interface IBus<BUSES, BUS extends keyof BUSES> {
 	subscriptions: EventSubscriptions<BUSES[BUS], Events<BUSES[BUS]>>;
 }
 
+function isEmpty (obj: any) {
+	for (const _ in obj)
+		return false;
+	return true;
+}
+
 export default class Excevent<BUSES> {
 
 	private buses: { [BUS in keyof BUSES]?: IBus<BUSES, BUS> } = {};
@@ -52,6 +58,63 @@ export default class Excevent<BUSES> {
 							if (!subscribedInProperty)
 								subscribedInProperty = subscribedReferences[property] = new Set();
 							subscribedInProperty.add(instance);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	public unsubscribe (instance: any) {
+		if (!instance)
+			return;
+
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+		const cls = instance.constructor as Class<any>;
+		const subscriber = IEventSubscriber.getSubscriber(cls);
+		if (subscriber[SYMBOL_SUBSCRIBER_INSTANCES]!.has(instance))
+			return;
+
+		subscriber[SYMBOL_SUBSCRIBER_INSTANCES]!.delete(instance);
+
+		type AllEvents = Events<BUSES[keyof BUSES]>;
+		const subscriptions = IEventSubscriber.getRegisteredSubscriptions(cls);
+		for (const subscriptionsByProperty of subscriptions) {
+			for (const [property, subscriptionsByHost] of Object.entries(subscriptionsByProperty)) {
+				for (const [host, subscriptions] of subscriptionsByHost as Map<EventBusOrHost<BUSES>, EventSubscriptionRegistrations<AllEvents>>) {
+					let subscribeTo: EventSubscriptions<BUSES[keyof BUSES], AllEvents>;
+					if (typeof host !== "object") {
+						// event bus
+						const bus = this.getBus(host as keyof BUSES);
+						subscribeTo = bus.subscriptions;
+
+					} else {
+						// host class or host
+						const hostInternal = IEventHostInternal.getHost<AllEvents>(host);
+						subscribeTo = hostInternal[SYMBOL_SUBSCRIPTIONS];
+					}
+
+					for (const [event, priorities] of Object.entries<Set<number> | undefined>(subscriptions)) {
+						for (const priority of priorities!) {
+							const subscriptionsByPriority = EventSubscriptions.get(subscribeTo, event as keyof AllEvents, false);
+							const subscribed = subscriptionsByPriority?.get(+priority);
+							const subscribedReferences = subscribed?.references;
+							const subscribedInProperty = subscribedReferences?.[property];
+							if (subscribedInProperty) {
+								subscribedInProperty.delete(instance);
+
+								if (subscribedInProperty.size === 0) {
+									delete subscribedReferences![property];
+									if (isEmpty(subscribedReferences)) {
+										if (subscribed!.handlers.size === 0) {
+											subscriptionsByPriority!.remove(+priority);
+											if (!subscriptionsByPriority!.hasAny()) {
+												delete subscribeTo[event as keyof AllEvents];
+											}
+										}
+									}
+								}
+							}
 						}
 					}
 				}

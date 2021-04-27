@@ -346,11 +346,11 @@ describe("excevent", () => {
 		new Foo().event.emit("test");
 		expect(test.hitFooTest).eq(2);
 
-		// excevent.unsubscribe(test);
+		excevent.unsubscribe(test);
 
-		// hitFooTest = 0;
-		// new Foo().event.emit("test");
-		// new Foo().event.emit("test");
-		// expect(hitFooTest).eq(2);
+		test.hitFooTest = 0;
+		new Foo().event.emit("test");
+		new Foo().event.emit("test");
+		expect(test.hitFooTest).eq(2);
 	});
 });

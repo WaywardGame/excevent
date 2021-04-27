@@ -115,7 +115,7 @@ class EventEmitter<HOST, EVENTS> {
 
 		for (const event of Array.isArray(events) ? events : [events]) {
 			const subscriptions = EventSubscriptions.get(this.subscriptions, event, false);
-			const subscribedHandlers = subscriptions.get(priority)?.handlers;
+			const subscribedHandlers = subscriptions?.get(priority)?.handlers;
 			if (subscribedHandlers)
 				for (const handler of handlers)
 					subscribedHandlers.delete(handler);
