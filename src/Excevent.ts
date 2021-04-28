@@ -39,9 +39,9 @@ export default class Excevent<BUSES> {
 			for (const [property, subscriptionsByHost] of Object.entries(subscriptionsByProperty)) {
 				for (const [host, subscriptions] of subscriptionsByHost as Map<EventBusOrHost<BUSES>, EventSubscriptionRegistrations<AllEvents>>) {
 					let subscribeTo: EventSubscriptions<BUSES[keyof BUSES], AllEvents>;
-					if (typeof host !== "object") {
+					if (typeof host !== "object" && typeof host !== "function") {
 						// event bus
-						const bus = this.getBus(host as keyof BUSES);
+						const bus = this.getBus(host);
 						subscribeTo = bus.subscriptions;
 
 					} else {
@@ -83,9 +83,9 @@ export default class Excevent<BUSES> {
 			for (const [property, subscriptionsByHost] of Object.entries(subscriptionsByProperty)) {
 				for (const [host, subscriptions] of subscriptionsByHost as Map<EventBusOrHost<BUSES>, EventSubscriptionRegistrations<AllEvents>>) {
 					let subscribeTo: EventSubscriptions<BUSES[keyof BUSES], AllEvents>;
-					if (typeof host !== "object") {
+					if (typeof host !== "object" && typeof host !== "function") {
 						// event bus
-						const bus = this.getBus(host as keyof BUSES);
+						const bus = this.getBus(host);
 						subscribeTo = bus.subscriptions;
 
 					} else {

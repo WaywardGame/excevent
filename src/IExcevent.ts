@@ -94,9 +94,9 @@ export namespace IEventHostInternal {
 	}
 }
 
-export const SYMBOL_SUBSCRIPTION_REGISTRATIONS = Symbol("EVENT_SUBSCRIBER_SUBSCRIPTION_REGISTRATIONS");
-export const SYMBOL_SUBSCRIBER_SET_CLASS = Symbol("EVENT_SUBSCRIBER_SET_CLASS");
-export const SYMBOL_SUBSCRIBER_INSTANCES = Symbol("EVENT_SUBSCRIBER_INSTANCES");
+export const SYMBOL_SUBSCRIPTION_REGISTRATIONS = Symbol("EXCEVENT_SUBSCRIBER_SUBSCRIPTION_REGISTRATIONS");
+export const SYMBOL_SUBSCRIBER_SET_CLASS = Symbol("EXCEVENT_SUBSCRIBER_SET_CLASS");
+export const SYMBOL_SUBSCRIBER_INSTANCES = Symbol("EXCEVENT_SUBSCRIBER_INSTANCES");
 
 export type EventSubscriptionRegistrationsByHost = Map<any, EventSubscriptionRegistrations<any>>;
 export type EventSubscriptionRegistrationsByProperty = Record<string, EventSubscriptionRegistrationsByHost>;

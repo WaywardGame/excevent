@@ -297,60 +297,182 @@ describe("Emitter", () => {
 });
 
 describe("excevent", () => {
-	enum EventBus {
-		Foo,
-		Bar,
-	}
 
-	interface IEventBuses {
-		[EventBus.Foo]: typeof Foo,
-		[EventBus.Bar]: typeof Bar,
-	}
+	describe("EventHandler", () => {
 
-	const excevent = new Excevent<IEventBuses>();
-	const EventHandler = excevent.getEventHandlerDecorator();
-
-	interface IFooEvents {
-		test (): any;
-		test3 (): any;
-		test2 (a: number, b: string, ...c: number[]): boolean;
-	}
-
-	class Foo extends EventEmitter.Host<IFooEvents> { }
-	excevent.registerBus(EventBus.Foo, Foo);
-
-	interface IBarEvents {
-		test7 (): any;
-		test6 (): any;
-		test5 (a: number, b: string, ...c: number[]): boolean;
-	}
-
-	class Bar extends EventEmitter.Host<IBarEvents> { }
-	excevent.registerBus(EventBus.Bar, Bar);
-
-	it("EventHandler", () => {
-		class Test {
-
-			public hitFooTest = 0;
-
-			@EventHandler(EventBus.Foo, "test")
-			protected onFooTest () {
-				this.hitFooTest++;
+		it("event bus", () => {
+			enum EventBus {
+				Foo,
 			}
-		}
 
-		const test = new Test();
-		excevent.subscribe(test);
+			interface IEventBuses {
+				[EventBus.Foo]: typeof Foo,
+			}
 
-		new Foo().event.emit("test");
-		new Foo().event.emit("test");
-		expect(test.hitFooTest).eq(2);
+			const excevent = new Excevent<IEventBuses>();
+			const EventHandler = excevent.getEventHandlerDecorator();
 
-		excevent.unsubscribe(test);
+			interface IFooEvents {
+				test (): any;
+				test3 (): any;
+				test2 (a: number, b: string, ...c: number[]): boolean;
+			}
 
-		test.hitFooTest = 0;
-		new Foo().event.emit("test");
-		new Foo().event.emit("test");
-		expect(test.hitFooTest).eq(2);
+			class Foo extends EventEmitter.Host<IFooEvents> { }
+			excevent.registerBus(EventBus.Foo, Foo);
+
+			class Test {
+
+				public hitFooTest = 0;
+
+				@EventHandler(EventBus.Foo, "test")
+				protected onFooTest () {
+					this.hitFooTest++;
+				}
+			}
+
+			const test = new Test();
+			excevent.subscribe(test);
+
+			new Foo().event.emit("test");
+			new Foo().event.emit("test");
+			expect(test.hitFooTest).eq(2);
+
+			excevent.unsubscribe(test);
+
+			test.hitFooTest = 0;
+			new Foo().event.emit("test");
+			new Foo().event.emit("test");
+			expect(test.hitFooTest).eq(2);
+		});
+
+		it("host class", () => {
+			interface IEventBuses {
+			}
+
+			const excevent = new Excevent<IEventBuses>();
+			const EventHandler = excevent.getEventHandlerDecorator();
+
+			interface IFooEvents {
+				test (): any;
+				test3 (): any;
+				test2 (a: number, b: string, ...c: number[]): boolean;
+			}
+
+			class Foo extends EventEmitter.Host<IFooEvents> { }
+
+			class Test {
+
+				public hitFooTest = 0;
+
+				@EventHandler(Foo, "test")
+				protected onFooTest () {
+					this.hitFooTest++;
+				}
+			}
+
+			const test = new Test();
+			excevent.subscribe(test);
+
+			new Foo().event.emit("test");
+			new Foo().event.emit("test");
+			expect(test.hitFooTest).eq(2);
+
+			excevent.unsubscribe(test);
+
+			test.hitFooTest = 0;
+			new Foo().event.emit("test");
+			new Foo().event.emit("test");
+			expect(test.hitFooTest).eq(2);
+		});
+
+		it("host instance", () => {
+			const excevent = new Excevent<{}>();
+			const EventHandler = excevent.getEventHandlerDecorator();
+
+			interface IFooEvents {
+				test (): any;
+				test3 (): any;
+				test2 (a: number, b: string, ...c: number[]): boolean;
+			}
+
+			class Foo extends EventEmitter.Host<IFooEvents> { }
+
+			const foo = new Foo();
+
+			class Test {
+
+				public hitFooTest = 0;
+
+				@EventHandler(foo, "test")
+				protected onFooTest () {
+					this.hitFooTest++;
+				}
+			}
+
+			const test = new Test();
+			excevent.subscribe(test);
+
+			foo.event.emit("test");
+			new Foo().event.emit("test");
+			expect(test.hitFooTest).eq(1);
+
+			excevent.unsubscribe(test);
+
+			test.hitFooTest = 0;
+			foo.event.emit("test");
+			new Foo().event.emit("test");
+			expect(test.hitFooTest).eq(1);
+		});
+
+		it("event bus, host class, and host instance", () => {
+			enum EventBus {
+				Foo,
+			}
+
+			interface IEventBuses {
+				[EventBus.Foo]: typeof Foo,
+			}
+
+			const excevent = new Excevent<IEventBuses>();
+			const EventHandler = excevent.getEventHandlerDecorator();
+
+			interface IFooEvents {
+				test (): any;
+				test3 (): any;
+				test2 (a: number, b: string, ...c: number[]): boolean;
+			}
+
+			class Foo extends EventEmitter.Host<IFooEvents> { }
+			excevent.registerBus(EventBus.Foo, Foo);
+
+			const foo = new Foo();
+
+			class Test {
+
+				public hitFooTest = 0;
+
+				@EventHandler(foo, "test")
+				@EventHandler(Foo, "test")
+				@EventHandler(EventBus.Foo, "test")
+				protected onFooTest () {
+					this.hitFooTest++;
+				}
+			}
+
+			const test = new Test();
+			excevent.subscribe(test);
+
+			foo.event.emit("test");
+			new Foo().event.emit("test");
+			expect(test.hitFooTest).eq(5);
+
+			excevent.unsubscribe(test);
+
+			test.hitFooTest = 0;
+			foo.event.emit("test");
+			new Foo().event.emit("test");
+			expect(test.hitFooTest).eq(5);
+		});
 	});
 });
