@@ -9,13 +9,20 @@ export default class PriorityMap<T> {
 	public static mapAll<T, RETURN> (lists: PriorityMap<T>[], consumer: (api: IPriorityListMapApi, value: T) => RETURN, api: IPriorityListMapApi = { break: false }) {
 		interface IIndexedList {
 			map: PriorityMap<T>;
+			priorities: number[];
 			index: number;
 			done: boolean;
 		}
 
 		const result: RETURN[] = [];
-		const listCount = lists.length;
-		const indexedLists: IIndexedList[] = lists.map(map => ({ map, index: 0, done: false }));
+		const indexedLists: IIndexedList[] = lists
+			.filter(map => map.hasAny())
+			.map(map => ({ map, index: 0, done: false, priorities: map.priorities.slice() }));
+
+		const listCount = indexedLists.length;
+		if (listCount === 0)
+			return result;
+
 		let done = 0;
 		while (true) {
 			let highest!: IIndexedList;
@@ -24,7 +31,7 @@ export default class PriorityMap<T> {
 				if (current.done)
 					continue;
 
-				const priority = current.map.priorities[current.index];
+				const priority = current.priorities[current.index];
 				if (highestPriority === undefined || priority > highestPriority) {
 					highest = current;
 					highestPriority = priority;
@@ -32,15 +39,16 @@ export default class PriorityMap<T> {
 			}
 
 			const map = highest.map;
-			if (map.priorities.length === ++highest.index) {
+			if (highest.priorities.length === ++highest.index) {
 				highest.done = true;
 				done++;
 			}
 
-			const value = map.internalMap.get(highestPriority!)!;
-			result.push(consumer(api, value));
-			if (api.break) {
-				return result;
+			const value = map.internalMap.get(highestPriority!);
+			if (value !== undefined) {
+				result.push(consumer(api, value));
+				if (api.break)
+					return result;
 			}
 
 			if (done === listCount)
@@ -88,11 +96,12 @@ export default class PriorityMap<T> {
 	public map<RETURN, API extends IPriorityListMapApi> (consumer: (api: API, value: T) => RETURN, api: API): RETURN[];
 	public map<RETURN> (consumer: (api: IPriorityListMapApi, value: T) => RETURN, api: IPriorityListMapApi = { break: false }) {
 		const result: RETURN[] = [];
-		for (const priority of this.priorities) {
-			const value = this.internalMap.get(priority)!;
-			result.push(consumer(api, value));
-			if (api.break) {
-				return result;
+		for (const priority of this.priorities.slice()) {
+			const value = this.internalMap.get(priority);
+			if (value !== undefined) {
+				result.push(consumer(api, value));
+				if (api.break)
+					return result;
 			}
 		}
 

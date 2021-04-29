@@ -280,12 +280,12 @@ namespace EventEmitter {
 
 export default EventEmitter;
 
-interface IUntilSubscriber<HOST, EVENTS> {
+export interface IUntilSubscriber<HOST, EVENTS> {
 	subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
 	subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
 }
 
-interface IUntilThisSubscriber<BUSES> {
+export interface IUntilThisSubscriber<BUSES> {
 	subscribe<HOST, EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (host: HOST, events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
 	subscribe<HOST, EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (host: HOST, events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
 }

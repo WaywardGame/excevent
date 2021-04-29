@@ -340,7 +340,6 @@ describe("excevent", () => {
 
 			excevent.unsubscribe(test);
 
-			test.hitFooTest = 0;
 			new Foo().event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(2);
@@ -380,7 +379,6 @@ describe("excevent", () => {
 
 			excevent.unsubscribe(test);
 
-			test.hitFooTest = 0;
 			new Foo().event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(2);
@@ -419,7 +417,6 @@ describe("excevent", () => {
 
 			excevent.unsubscribe(test);
 
-			test.hitFooTest = 0;
 			foo.event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(1);
@@ -469,10 +466,24 @@ describe("excevent", () => {
 
 			excevent.unsubscribe(test);
 
-			test.hitFooTest = 0;
 			foo.event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(5);
+
+			let hitFooTest2 = 0;
+			const subscriber = excevent.createSubscriber()
+				.register(foo, "test", () => hitFooTest2++);
+
+			foo.event.emit("test");
+			expect(hitFooTest2).eq(0);
+
+			subscriber.subscribe();
+			foo.event.emit("test");
+			expect(hitFooTest2).eq(1);
+
+			subscriber.unsubscribe();
+			foo.event.emit("test");
+			expect(hitFooTest2).eq(1);
 
 			// interface IBarEvents {
 			// 	testBar (thing: number): any;

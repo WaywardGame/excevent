@@ -18,11 +18,10 @@ export type EventUnion<EVENTS, EVENT extends EventList<EVENTS>> = EVENT extends 
 
 export type EventSubscriptions<HOST, EVENTS> = { [EVENT in keyof EVENTS]?: EventHandlersByPriority<HOST, EVENTS, EVENT> };
 
-export type EventSubscriptionRegistrations<EVENTS> = { [EVENT in keyof EVENTS]?: Set<number> };
 export namespace EventSubscriptions {
 	export function get<HOST, EVENTS, EVENT extends keyof EVENTS> (subscriptions: EventSubscriptions<HOST, EVENTS>, event: EVENT): EventHandlersByPriority<HOST, EVENTS, EventUnion<EVENTS, EVENT>>;
 	export function get<HOST, EVENTS, EVENT extends keyof EVENTS> (subscriptions: EventSubscriptions<HOST, EVENTS>, event: EVENT, create: false): EventHandlersByPriority<HOST, EVENTS, EventUnion<EVENTS, EVENT>> | undefined;
-	export function get (subscriptions: EventSubscriptions<any, any> | EventSubscriptionRegistrations<any>, event: any, create = true) {
+	export function get (subscriptions: EventSubscriptions<any, any>, event: any, create = true) {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 		let subscriptionsByEvent = subscriptions[event];
 		if (!subscriptionsByEvent && create)
@@ -104,34 +103,65 @@ export namespace IEventHostInternal {
 	}
 }
 
+export const SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS = Symbol("EXCEVENT_SUBSCRIBER_SUBSCRIPTION_PROPERTY_REGISTRATIONS");
 export const SYMBOL_SUBSCRIPTION_REGISTRATIONS = Symbol("EXCEVENT_SUBSCRIBER_SUBSCRIPTION_REGISTRATIONS");
 export const SYMBOL_SUBSCRIBER_SET_CLASS = Symbol("EXCEVENT_SUBSCRIBER_SET_CLASS");
 export const SYMBOL_SUBSCRIBER_INSTANCES = Symbol("EXCEVENT_SUBSCRIBER_INSTANCES");
 
+export type EventSubscriptionRegistrations<EVENTS> = { [EVENT in keyof EVENTS]?: Set<number> };
 export type EventSubscriptionRegistrationsByHost = Map<any, EventSubscriptionRegistrations<any>>;
 export type EventSubscriptionRegistrationsByProperty = Record<string, EventSubscriptionRegistrationsByHost>;
+export type EventSubscriptionHandlerRegistrations = Map<any, EventSubscriptions<any, any>>;
 
 export interface IEventSubscriber {
-	[SYMBOL_SUBSCRIPTION_REGISTRATIONS]?: EventSubscriptionRegistrationsByProperty;
+	[SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS]?: EventSubscriptionRegistrationsByProperty;
+	[SYMBOL_SUBSCRIPTION_REGISTRATIONS]?: EventSubscriptionHandlerRegistrations;
 	[SYMBOL_SUBSCRIBER_SET_CLASS]?: any;
 	[SYMBOL_SUBSCRIBER_INSTANCES]?: Set<any>;
 }
 
 export namespace IEventSubscriber {
-	export function getRegisteredSubscriptions (cls: Class<any>): EventSubscriptionRegistrationsByProperty[] {
+	export function getRegisteredPropertySubscriptions (cls: any): EventSubscriptionRegistrationsByProperty[] {
 		if (!cls)
 			return [];
 
 		const s = getSubscriber(cls);
-		return [s[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!, ...getRegisteredSubscriptions(Object.getPrototypeOf(cls))];
+
+		const result = [s[SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS]!];
+		if (typeof cls === "function")
+			result.push(...getRegisteredPropertySubscriptions(Object.getPrototypeOf(cls)));
+
+		return result;
 	}
 
-	export function getSubscriber (subscriber: Class<any>) {
+	export function getRegisteredSubscriptions (cls: any): EventSubscriptionHandlerRegistrations[] {
+		if (!cls)
+			return [];
+
+		const s = getSubscriber(cls);
+
+		const result = [s[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!];
+		if (typeof cls === "function")
+			result.push(...getRegisteredSubscriptions(Object.getPrototypeOf(cls)));
+
+		return result;
+	}
+
+	export function getSubscriber (subscriber: any) {
 		const s = subscriber as IEventSubscriber;
-		if (s && s[SYMBOL_SUBSCRIBER_SET_CLASS] !== s) {
-			s[SYMBOL_SUBSCRIPTION_REGISTRATIONS] = {};
-			s[SYMBOL_SUBSCRIBER_SET_CLASS] = s;
-			s[SYMBOL_SUBSCRIBER_INSTANCES] = new Set();
+		if (s) {
+			if (typeof subscriber === "function") {
+				if (s[SYMBOL_SUBSCRIBER_SET_CLASS] !== s) {
+					s[SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS] = {};
+					s[SYMBOL_SUBSCRIPTION_REGISTRATIONS] = new Map();
+					s[SYMBOL_SUBSCRIBER_SET_CLASS] = s;
+					s[SYMBOL_SUBSCRIBER_INSTANCES] = new Set();
+				}
+
+			} else {
+				s[SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS] ??= {};
+				s[SYMBOL_SUBSCRIPTION_REGISTRATIONS] ??= new Map();
+			}
 		}
 
 		return s;

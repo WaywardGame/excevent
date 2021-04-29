@@ -1,4 +1,5 @@
-import { EventBusOrHost, EventHandler, Events, EventSubscriptionRegistrations, EventSubscriptions, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIBER_INSTANCES, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
+import { EventBusOrHost, EventHandler, EventList, Events, EventSubscriptionRegistrations, EventSubscriptions, EventUnion, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIBER_INSTANCES, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
+import PriorityMap from "./PriorityMap";
 
 type AnyFunction = (...args: any[]) => any;
 type Class<T> = { new(...args: any[]): T };
@@ -14,24 +15,64 @@ function isEmpty (obj: any) {
 	return true;
 }
 
+export class GlobalEventSubscriber<BUSES> {
+
+	public constructor (private readonly excevent: Excevent<BUSES>) { }
+
+	public register<HOST, EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (host: HOST, events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	public register<HOST, EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (host: HOST, events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	public register (host: any, events: string | string[], priority: number | AnyFunction, ...handlers: AnyFunction[]) {
+		if (typeof priority !== "number") {
+			if (priority !== undefined) {
+				handlers.push(priority);
+			}
+
+			priority = 0;
+		}
+
+		for (const event of Array.isArray(events) ? events : [events])
+			for (const handler of handlers)
+				registerHandler(this, handler, host, event, priority);
+
+		return this;
+	}
+
+	public subscribe () {
+		this.excevent.subscribe(this);
+		return this;
+	}
+
+	public unsubscribe () {
+		this.excevent.unsubscribe(this);
+		return this;
+	}
+}
+
 export default class Excevent<BUSES> {
 
 	private buses: { [BUS in keyof BUSES]?: IBus<BUSES, BUS> } = {};
+
+	public createSubscriber (): GlobalEventSubscriber<BUSES> {
+		return new GlobalEventSubscriber(this);
+	}
 
 	public subscribe (instance: any) {
 		if (!instance)
 			return;
 
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-		const cls = instance.constructor as Class<any>;
+		const cls = instance instanceof GlobalEventSubscriber ? instance : instance.constructor as Class<any>;
 		const subscriber = IEventSubscriber.getSubscriber(cls);
-		if (subscriber[SYMBOL_SUBSCRIBER_INSTANCES]!.has(instance))
-			return;
+		const subscriberInstances = subscriber[SYMBOL_SUBSCRIBER_INSTANCES];
+		if (subscriberInstances) {
+			if (subscriberInstances.has(instance))
+				return;
 
-		subscriber[SYMBOL_SUBSCRIBER_INSTANCES]!.add(instance);
+			subscriberInstances.add(instance);
+		}
 
 		type AllEvents = Events<BUSES[keyof BUSES]>;
-		const subscriptions = IEventSubscriber.getRegisteredSubscriptions(cls);
+		const subscriptions = IEventSubscriber.getRegisteredPropertySubscriptions(cls);
 		for (const subscriptionsByProperty of subscriptions) {
 			for (const [property, subscriptionsByHost] of Object.entries(subscriptionsByProperty)) {
 				for (const [host, subscriptions] of subscriptionsByHost as Map<EventBusOrHost<BUSES>, EventSubscriptionRegistrations<AllEvents>>) {
@@ -60,6 +101,33 @@ export default class Excevent<BUSES> {
 				}
 			}
 		}
+
+		const handlerSubscriptions = IEventSubscriber.getRegisteredSubscriptions(cls);
+		for (const subscriptionsByHost of handlerSubscriptions) {
+			for (const [host, subscriptions] of subscriptionsByHost) {
+				let subscribeTo: EventSubscriptions<BUSES[keyof BUSES], AllEvents>;
+				if (typeof host !== "object" && typeof host !== "function") {
+					// event bus
+					const bus = this.getBus(host);
+					subscribeTo = bus.subscriptions;
+
+				} else {
+					// host class or host
+					const hostInternal = IEventHostInternal.getHost<AllEvents>(host);
+					subscribeTo = hostInternal[SYMBOL_SUBSCRIPTIONS];
+				}
+
+				for (const [event, handlersByPriority] of Object.entries(subscriptions)) {
+					for (const priority of handlersByPriority!.getPriorities()) {
+						for (const handler of handlersByPriority!.get(priority)?.handlers ?? []) {
+							const subscriptions = EventSubscriptions.get(subscribeTo, event as keyof AllEvents);
+							const subscribedHandlers = EventSubscriptions.getPriority(subscriptions, +priority).handlers;
+							subscribedHandlers.add(handler as any);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	public unsubscribe (instance: any) {
@@ -67,15 +135,18 @@ export default class Excevent<BUSES> {
 			return;
 
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-		const cls = instance.constructor as Class<any>;
+		const cls = instance instanceof GlobalEventSubscriber ? instance : instance.constructor as Class<any>;
 		const subscriber = IEventSubscriber.getSubscriber(cls);
-		if (subscriber[SYMBOL_SUBSCRIBER_INSTANCES]!.has(instance))
-			return;
+		const subscriberInstances = subscriber[SYMBOL_SUBSCRIBER_INSTANCES];
+		if (subscriberInstances) {
+			if (!subscriberInstances.has(instance))
+				return;
 
-		subscriber[SYMBOL_SUBSCRIBER_INSTANCES]!.delete(instance);
+			subscriberInstances.delete(instance);
+		}
 
 		type AllEvents = Events<BUSES[keyof BUSES]>;
-		const subscriptions = IEventSubscriber.getRegisteredSubscriptions(cls);
+		const subscriptions = IEventSubscriber.getRegisteredPropertySubscriptions(cls);
 		for (const subscriptionsByProperty of subscriptions) {
 			for (const [property, subscriptionsByHost] of Object.entries(subscriptionsByProperty)) {
 				for (const [host, subscriptions] of subscriptionsByHost as Map<EventBusOrHost<BUSES>, EventSubscriptionRegistrations<AllEvents>>) {
@@ -117,6 +188,37 @@ export default class Excevent<BUSES> {
 				}
 			}
 		}
+
+		const handlerSubscriptions = IEventSubscriber.getRegisteredSubscriptions(cls);
+		for (const subscriptionsByHost of handlerSubscriptions) {
+			for (const [host, subscriptions] of subscriptionsByHost) {
+				let subscribeTo: EventSubscriptions<BUSES[keyof BUSES], AllEvents>;
+				if (typeof host !== "object" && typeof host !== "function") {
+					// event bus
+					const bus = this.getBus(host);
+					subscribeTo = bus.subscriptions;
+
+				} else {
+					// host class or host
+					const hostInternal = IEventHostInternal.getHost<AllEvents>(host);
+					subscribeTo = hostInternal[SYMBOL_SUBSCRIPTIONS];
+				}
+
+				for (const [event, handlersByPriority] of Object.entries(subscriptions)) {
+					for (const priority of handlersByPriority!.getPriorities()) {
+						for (const handler of handlersByPriority!.get(priority)?.handlers ?? []) {
+							const subscriptions = EventSubscriptions.get(subscribeTo, event as keyof AllEvents);
+							const subscribedByType = subscriptions.get(+priority);
+							const subscribedHandlers = subscribedByType?.handlers;
+							subscribedHandlers?.delete(handler as any);
+							if (subscribedHandlers?.size === 0 && isEmpty(subscribedByType!.references)) {
+								subscriptions.remove(+priority);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	public registerBus<BUS extends keyof BUSES> (bus: BUS, host: BUSES[BUS]) {
@@ -146,30 +248,49 @@ export default class Excevent<BUSES> {
 	}
 
 	public getEventHandlerDecorator () {
-
-		function EventHandler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, Events<ON, BUSES>, EVENT>>) => void {
+		const EventHandler = <ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, Events<ON, BUSES>, EVENT>>) => void => {
 			return <T extends { [key in P]: AnyFunction }, P extends string | number> (subscriberClass: T, property: P, descriptor: TypedPropertyDescriptor<any>) => {
-				const subscriber = IEventSubscriber.getSubscriber(subscriberClass.constructor as Class<T>);
-				const subscriptions = subscriber[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!;
-				let subscriptionsOfProperty = subscriptions[property as string];
-				if (!subscriptionsOfProperty)
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-					subscriptionsOfProperty = subscriptions[property as string] = new Map();
-
-				let subscriptionsOfHost = subscriptionsOfProperty.get(on);
-				if (!subscriptionsOfHost)
-					subscriptionsOfProperty.set(on, subscriptionsOfHost = {});
-
-				let priorities = subscriptionsOfHost[event];
-				if (!priorities)
-					priorities = subscriptionsOfHost[event] = new Set();
-
-				priorities.add(priority);
+				registerHandlerProperty(subscriberClass.constructor, property as string, on, event as string, priority);
 			};
 		}
 
 		return EventHandler;
 	}
+}
+
+function registerHandlerProperty (_subscriber: any, property: string, on: any, event: string, priority: number) {
+	const subscriber = IEventSubscriber.getSubscriber(_subscriber);
+	const subscriptions = subscriber[SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS]!;
+	let subscriptionsOfProperty = subscriptions[property];
+	if (!subscriptionsOfProperty)
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+		subscriptionsOfProperty = subscriptions[property] = new Map();
+
+	let subscriptionsOfHost = subscriptionsOfProperty.get(on);
+	if (!subscriptionsOfHost)
+		subscriptionsOfProperty.set(on, subscriptionsOfHost = {});
+
+	let priorities = subscriptionsOfHost[event];
+	if (!priorities)
+		priorities = subscriptionsOfHost[event] = new Set();
+
+	priorities.add(priority);
+}
+
+function registerHandler (_subscriber: any, handler: AnyFunction, on: any, event: string, priority: number) {
+	const subscriber = IEventSubscriber.getSubscriber(_subscriber);
+	const subscriptions = subscriber[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!;
+
+	let subscriptionsOfHost = subscriptions.get(on);
+	if (!subscriptionsOfHost)
+		subscriptions.set(on, subscriptionsOfHost = {});
+
+	let subscriptionsByPriority = subscriptionsOfHost[event];
+	if (!subscriptionsByPriority)
+		subscriptionsByPriority = subscriptionsOfHost[event] = new PriorityMap();
+
+	EventSubscriptions.getPriority(subscriptionsByPriority, priority)
+		.handlers.add(handler);
 }
 
 type ReturnTypeLenient<F extends AnyFunction> =
