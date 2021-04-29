@@ -50,7 +50,14 @@ export interface IEventApi<HOST, EVENTS, EVENT extends keyof EVENTS> extends IPr
 	readonly host: HOST;
 	readonly event: EVENT;
 	readonly index: number;
+	/**
+	 * Whether the event should stop executing handlers after this handler
+	 */
 	break: boolean;
+	/**
+	 * Whether the return of this event handler should be disregarded in the event's results
+	 */
+	disregard: boolean;
 }
 
 export const SYMBOL_SUBSCRIPTIONS = Symbol("EXCEVENT_SUBSCRIPTIONS");
@@ -63,7 +70,10 @@ export interface IEventHost<EVENTS> {
 
 type Class<T> = { new(...args: any[]): T };
 export type EventHostOrClass<EVENTS> = IEventHost<EVENTS> | Class<IEventHost<EVENTS>>;
-export type Events<HOST> = HOST extends EventHostOrClass<infer EVENTS> ? EVENTS : never;
+type EventsOfHostOrClass<HOST> = HOST extends EventHostOrClass<infer EVENTS> ? EVENTS : never;
+export type EventBusOrHost<BUSES> = keyof BUSES | EventHostOrClass<EventsOfHostOrClass<BUSES[keyof BUSES]>>;
+export type Events<HOST, BUSES = null> =
+	EventsOfHostOrClass<HOST extends keyof BUSES ? BUSES[keyof BUSES] : HOST>;
 
 export interface IEventHostInternal<EVENTS> {
 	[SYMBOL_SUBSCRIPTIONS]: EventSubscriptions<any, EVENTS>;

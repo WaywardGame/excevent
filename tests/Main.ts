@@ -318,7 +318,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host<IFooEvents> { }
+			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
 			excevent.registerBus(EventBus.Foo, Foo);
 
 			class Test {
@@ -359,7 +359,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host<IFooEvents> { }
+			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
 
 			class Test {
 
@@ -396,7 +396,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host<IFooEvents> { }
+			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
 
 			const foo = new Foo();
 
@@ -443,7 +443,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host<IFooEvents> { }
+			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
 			excevent.registerBus(EventBus.Foo, Foo);
 
 			const foo = new Foo();
@@ -473,6 +473,19 @@ describe("excevent", () => {
 			foo.event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(5);
+
+			// interface IBarEvents {
+			// 	testBar (thing: number): any;
+			// }
+
+			// class Bar extends EventEmitter.Host(excevent)<IBarEvents> { }
+
+			// foo.event.until("test", subscriber => subscriber
+			// 	.subscribe(EventBus.Foo, "test"));
+
+			// foo.event.until(Bar, "testBar", subscriber => subscriber
+			// 	.subscribe("test"))
+
 		});
 	});
 });

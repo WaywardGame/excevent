@@ -1,10 +1,7 @@
-import { EventHandler, EventHostOrClass, Events, EventSubscriptionRegistrations, EventSubscriptions, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIBER_INSTANCES, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
+import { EventBusOrHost, EventHandler, Events, EventSubscriptionRegistrations, EventSubscriptions, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIBER_INSTANCES, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
 
 type AnyFunction = (...args: any[]) => any;
 type Class<T> = { new(...args: any[]): T };
-type EventBusOrHost<BUSES> = keyof BUSES | EventHostOrClass<Events<BUSES[keyof BUSES]>>;
-type ResolveEvents<BUSES, ON extends EventBusOrHost<BUSES>> =
-	ON extends keyof BUSES ? Events<BUSES[ON]> : Events<ON>;
 
 interface IBus<BUSES, BUS extends keyof BUSES> {
 	host?: IEventHostInternal<Events<BUSES[BUS]>>;
@@ -150,7 +147,7 @@ export default class Excevent<BUSES> {
 
 	public getEventHandlerDecorator () {
 
-		function EventHandler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof ResolveEvents<BUSES, ON>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, ResolveEvents<BUSES, ON>, EVENT>>) => void {
+		function EventHandler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, Events<ON, BUSES>, EVENT>>) => void {
 			return <T extends { [key in P]: AnyFunction }, P extends string | number> (subscriberClass: T, property: P, descriptor: TypedPropertyDescriptor<any>) => {
 				const subscriber = IEventSubscriber.getSubscriber(subscriberClass.constructor as Class<T>);
 				const subscriptions = subscriber[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!;
