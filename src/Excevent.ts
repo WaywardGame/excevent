@@ -239,14 +239,18 @@ export default class Excevent<BUSES> {
 		delete registeredBus.host?.[SYMBOL_EVENT_BUS_SUBSCRIPTIONS][bus as string | number];
 	}
 
-	public getEventHandlerDecorator () {
-		const EventHandler = <ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, Events<ON, BUSES>, EVENT>>) => void => {
-			return <T extends { [key in P]: AnyFunction }, P extends string | number> (subscriberClass: T, property: P, descriptor: TypedPropertyDescriptor<any>) => {
-				registerHandlerProperty(subscriberClass.constructor, property as string, on, event as string, priority);
-			};
-		}
+	/**
+	 * A decorator for event handler methods
+	 * @param on What event source to subscribe to
+	 * @param event The event to subscribe to
+	 * @param priority The priority of this handler compared to other handlers of the same event
+	 */
+	public Handler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, Events<ON, BUSES>, EVENT>>) => void {
+		return <T extends { [key in P]: AnyFunction }, P extends string | number> (subscriberClass: T, property: P, descriptor: TypedPropertyDescriptor<any>) => {
+			registerHandlerProperty(subscriberClass.constructor, property as string, on, event as string, priority);
+		};
+	}
 
-		return EventHandler;
 	}
 }
 

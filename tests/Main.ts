@@ -367,8 +367,7 @@ describe("excevent", () => {
 				[EventBus.Foo]: typeof Foo,
 			}
 
-			const excevent = new Excevent<IEventBuses>();
-			const EventHandler = excevent.getEventHandlerDecorator();
+			const Events = new Excevent<IEventBuses>();
 
 			interface IFooEvents {
 				test (): any;
@@ -376,27 +375,27 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
 			excevent.registerBus(EventBus.Foo, Foo);
+			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
 
 			class Test {
 
 				public hitFooTest = 0;
 
-				@EventHandler(EventBus.Foo, "test")
+				@Events.Handler(EventBus.Foo, "test")
 				protected onFooTest () {
 					this.hitFooTest++;
 				}
 			}
 
 			const test = new Test();
-			excevent.subscribe(test);
+			Events.subscribe(test);
 
 			new Foo().event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(2);
 
-			excevent.unsubscribe(test);
+			Events.unsubscribe(test);
 
 			new Foo().event.emit("test");
 			new Foo().event.emit("test");
@@ -407,8 +406,7 @@ describe("excevent", () => {
 			interface IEventBuses {
 			}
 
-			const excevent = new Excevent<IEventBuses>();
-			const EventHandler = excevent.getEventHandlerDecorator();
+			const Events = new Excevent<IEventBuses>();
 
 			interface IFooEvents {
 				test (): any;
@@ -416,26 +414,26 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
+			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
 
 			class Test {
 
 				public hitFooTest = 0;
 
-				@EventHandler(Foo, "test")
+				@Events.Handler(Foo, "test")
 				protected onFooTest () {
 					this.hitFooTest++;
 				}
 			}
 
 			const test = new Test();
-			excevent.subscribe(test);
+			Events.subscribe(test);
 
 			new Foo().event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(2);
 
-			excevent.unsubscribe(test);
+			Events.unsubscribe(test);
 
 			new Foo().event.emit("test");
 			new Foo().event.emit("test");
@@ -443,8 +441,7 @@ describe("excevent", () => {
 		});
 
 		it("host instance", () => {
-			const excevent = new Excevent<{}>();
-			const EventHandler = excevent.getEventHandlerDecorator();
+			const Events = new Excevent<{}>();
 
 			interface IFooEvents {
 				test (): any;
@@ -452,7 +449,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
+			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
 
 			const foo = new Foo();
 
@@ -460,20 +457,20 @@ describe("excevent", () => {
 
 				public hitFooTest = 0;
 
-				@EventHandler(foo, "test")
+				@Events.Handler(foo, "test")
 				protected onFooTest () {
 					this.hitFooTest++;
 				}
 			}
 
 			const test = new Test();
-			excevent.subscribe(test);
+			Events.subscribe(test);
 
 			foo.event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(1);
 
-			excevent.unsubscribe(test);
+			Events.unsubscribe(test);
 
 			foo.event.emit("test");
 			new Foo().event.emit("test");
@@ -489,8 +486,7 @@ describe("excevent", () => {
 				[EventBus.Foo]: typeof Foo,
 			}
 
-			const excevent = new Excevent<IEventBuses>();
-			const EventHandler = excevent.getEventHandlerDecorator();
+			const Events = new Excevent<IEventBuses>();
 
 			interface IFooEvents {
 				test (): any;
@@ -498,8 +494,8 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
-			excevent.registerBus(EventBus.Foo, Foo);
+			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
+			Events.registerBus(EventBus.Foo, Foo);
 
 			const foo = new Foo();
 
@@ -507,22 +503,22 @@ describe("excevent", () => {
 
 				public hitFooTest = 0;
 
-				@EventHandler(foo, "test")
-				@EventHandler(Foo, "test")
-				@EventHandler(EventBus.Foo, "test")
+				@Events.Handler(foo, "test")
+				@Events.Handler(Foo, "test")
+				@Events.Handler(EventBus.Foo, "test")
 				protected onFooTest () {
 					this.hitFooTest++;
 				}
 			}
 
 			const test = new Test();
-			excevent.subscribe(test);
+			Events.subscribe(test);
 
 			foo.event.emit("test");
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(5);
 
-			excevent.unsubscribe(test);
+			Events.unsubscribe(test);
 
 			foo.event.emit("test");
 			new Foo().event.emit("test");
@@ -531,8 +527,7 @@ describe("excevent", () => {
 		});
 
 		it("inheritance", () => {
-			const excevent = new Excevent<{}>();
-			const EventHandler = excevent.getEventHandlerDecorator();
+			const Events = new Excevent<{}>();
 
 			interface IFooEvents {
 				test (): any;
@@ -540,7 +535,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
+			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
 
 			const foo = new Foo();
 
@@ -548,7 +543,7 @@ describe("excevent", () => {
 
 				public hitFooTest = 0;
 
-				@EventHandler(foo, "test")
+				@Events.Handler(foo, "test")
 				protected onFooTest () {
 					this.hitFooTest++;
 				}
@@ -558,7 +553,7 @@ describe("excevent", () => {
 
 				public hitFooTest2 = 0;
 
-				@EventHandler(foo, "test3")
+				@Events.Handler(foo, "test3")
 				protected onFooTest3 () {
 					this.hitFooTest2++;
 					return true;
@@ -566,10 +561,10 @@ describe("excevent", () => {
 			}
 
 			const test = new Test();
-			excevent.subscribe(test);
+			Events.subscribe(test);
 
 			const test2 = new Test2();
-			excevent.subscribe(test2);
+			Events.subscribe(test2);
 
 			foo.event.emit("test");
 			foo.event.emit("test3");
@@ -577,8 +572,8 @@ describe("excevent", () => {
 			expect(test2.hitFooTest).eq(1);
 			expect(test2.hitFooTest2).eq(1);
 
-			excevent.unsubscribe(test);
-			excevent.unsubscribe(test2);
+			Events.unsubscribe(test);
+			Events.unsubscribe(test2);
 
 			foo.event.emit("test");
 			foo.event.emit("test3");
