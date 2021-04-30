@@ -1,5 +1,5 @@
 {
-	"name": "excevent",
+	"name": "@wayward/excevent",
 	"version": "0.1.0",
 	"license": "MIT",
 	"main": "Excevent.js",
