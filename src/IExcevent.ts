@@ -166,4 +166,34 @@ export namespace IEventSubscriber {
 
 		return s;
 	}
+
+	export function addInstance (subscriber: IEventSubscriber, instance: any) {
+		const instances = subscriber[SYMBOL_SUBSCRIBER_INSTANCES];
+		if (instances) {
+			if (instances.has(instance))
+				return false;
+
+			instances.add(instance);
+		}
+
+		if (typeof subscriber === "function")
+			addInstance(Object.getPrototypeOf(subscriber), instance);
+
+		return true;
+	}
+
+	export function removeInstance (subscriber: IEventSubscriber, instance: any) {
+		const instances = subscriber[SYMBOL_SUBSCRIBER_INSTANCES]
+		if (instances) {
+			if (!instances.has(instance))
+				return false;
+
+			instances.delete(instance);
+		}
+
+		if (typeof subscriber === "function")
+			removeInstance(Object.getPrototypeOf(subscriber), instance);
+
+		return true;
+	}
 }

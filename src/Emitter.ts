@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
 import Excevent from "./Excevent";
-import { EventBusOrHost, EventHandler, EventHandlersByPriority, EventHostOrClass, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, IEventApi, IEventHostInternal } from "./IExcevent";
+import { EventBusOrHost, EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, IEventApi, IEventHostInternal } from "./IExcevent";
 import PriorityMap from "./PriorityMap";
 
 type CoerceVoidToUndefined<T> = T extends void ? undefined : T;
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 type AnyFunction = (...args: any[]) => any;
 
-class EventEmitter<HOST, EVENTS, BUSES = never> {
+class EventEmitter<HOST, EVENTS, BUSES = null> {
 
 	private subscriptions: EventSubscriptions<HOST, EVENTS> = {};
 
@@ -159,7 +159,7 @@ class EventEmitter<HOST, EVENTS, BUSES = never> {
 	}
 
 	public until<EVENT extends EventList<EVENTS>> (event: EVENT, initializer: (subscriber: IUntilThisSubscriber<BUSES>) => any): this;
-	public until<UNTIL_HOST extends (BUSES extends null ? EventHostOrClass<any> : EventBusOrHost<any>), UNTIL_EVENTS extends Events<UNTIL_HOST, BUSES>, EVENT extends EventList<UNTIL_EVENTS>> (host: UNTIL_HOST, event: EVENT, initializer: (subscriber: IUntilSubscriber<HOST, EVENTS>) => any): IUntilSubscriber<HOST, EVENTS>;
+	public until<UNTIL_HOST extends (BUSES extends null ? never : EventBusOrHost<any>), UNTIL_EVENTS extends Events<UNTIL_HOST, BUSES>, EVENT extends EventList<UNTIL_EVENTS>> (host: UNTIL_HOST, event: EVENT, initializer: (subscriber: IUntilSubscriber<HOST, EVENTS>) => any): IUntilSubscriber<HOST, EVENTS>;
 	public until (host: any, event?: string | string[] | ((until: any) => any), initializer?: (until: any) => any) {
 		if (typeof event === "function") {
 			initializer = event;
@@ -228,22 +228,24 @@ class EventEmitter<HOST, EVENTS, BUSES = never> {
 
 		initializer!(untilSubscriber);
 		if (subscriptions.length > 0) {
-			// TODO use excevent createSubscriber
-			// @ts-ignore
-			for (const [event, priority, ...handlers] of subscriptions) {
-				// TODO use excevent subscriber
+			if (this.excevent === undefined) {
+				console.warn("Emitter", this, "has no reference to an Excevent instance, cannot use 'until' for event:", event, "on:", host);
+				return this;
 			}
 
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-			host.subscribe(event as EventList<EVENTS>, -Infinity, (api: IEventApi<any, any, any>, _: any): any => {
-				// unsubscribe
-				// @ts-ignore
-				for (const [event, priority, ...handlers] of subscriptions) {
-					// TODO use excevent subscriber
-				}
+			for (const [event, priority, ...handlers] of subscriptions)
+				this.subscribe(event as any, priority, ...handlers);
 
-				api.disregard = true;
-			});
+			const subscriber = this.excevent.createSubscriber()
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+				.register(host, event as EventList<EVENTS>, -Infinity, (api: IEventApi<any, any, any>, _: any): any => {
+					// unsubscribe
+					subscriber.unsubscribe();
+					for (const [event, priority, ...handlers] of subscriptions)
+						this.unsubscribe(event as any, priority, ...handlers);
+					api.disregard = true;
+				})
+				.subscribe();
 		}
 
 		return this;
@@ -271,7 +273,7 @@ class EventEmitter<HOST, EVENTS, BUSES = never> {
 }
 
 namespace EventEmitter {
-	export function Host<BUSES> (excevent?: Excevent<BUSES>) {
+	export function Host<BUSES = null> (excevent?: Excevent<BUSES>) {
 		return class <EVENTS> {
 			public readonly event = new EventEmitter<this, EVENTS, BUSES>(this, excevent);
 		}

@@ -1,4 +1,4 @@
-import { EventBusOrHost, EventHandler, EventList, Events, EventSubscriptionRegistrations, EventSubscriptions, EventUnion, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIBER_INSTANCES, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
+import { EventBusOrHost, EventHandler, EventList, Events, EventSubscriptionRegistrations, EventSubscriptions, EventUnion, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
 import PriorityMap from "./PriorityMap";
 
 type AnyFunction = (...args: any[]) => any;
@@ -63,13 +63,8 @@ export default class Excevent<BUSES> {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 		const cls = instance instanceof GlobalEventSubscriber ? instance : instance.constructor as Class<any>;
 		const subscriber = IEventSubscriber.getSubscriber(cls);
-		const subscriberInstances = subscriber[SYMBOL_SUBSCRIBER_INSTANCES];
-		if (subscriberInstances) {
-			if (subscriberInstances.has(instance))
-				return;
-
-			subscriberInstances.add(instance);
-		}
+		if (!IEventSubscriber.addInstance(subscriber, instance))
+			return;
 
 		type AllEvents = Events<BUSES[keyof BUSES]>;
 		const subscriptions = IEventSubscriber.getRegisteredPropertySubscriptions(cls);
@@ -98,6 +93,8 @@ export default class Excevent<BUSES> {
 							subscribedInProperty.add(instance);
 						}
 					}
+
+
 				}
 			}
 		}
@@ -137,13 +134,8 @@ export default class Excevent<BUSES> {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 		const cls = instance instanceof GlobalEventSubscriber ? instance : instance.constructor as Class<any>;
 		const subscriber = IEventSubscriber.getSubscriber(cls);
-		const subscriberInstances = subscriber[SYMBOL_SUBSCRIBER_INSTANCES];
-		if (subscriberInstances) {
-			if (!subscriberInstances.has(instance))
-				return;
-
-			subscriberInstances.delete(instance);
-		}
+		if (!IEventSubscriber.removeInstance(subscriber, instance))
+			return;
 
 		type AllEvents = Events<BUSES[keyof BUSES]>;
 		const subscriptions = IEventSubscriber.getRegisteredPropertySubscriptions(cls);

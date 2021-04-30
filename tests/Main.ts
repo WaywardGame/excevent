@@ -294,6 +294,64 @@ describe("Emitter", () => {
 		});
 	});
 
+	describe("until", () => {
+		describe("own event", () => {
+			it("should handle the event before unsubscribing", () => {
+				interface IFooEvents {
+					test (): any;
+					test3 (): any;
+					test2 (a: number, b: string, ...c: number[]): boolean;
+				}
+
+				class Foo extends EventEmitter.Host()<IFooEvents> { }
+				const foo = new Foo();
+
+				let hitFooTest3 = 0;
+				foo.event.until("test", subscriber => subscriber
+					.subscribe(foo, "test", () => hitFooTest3++));
+
+				foo.event.emit("test");
+				expect(hitFooTest3).eq(1);
+				foo.event.emit("test");
+				expect(hitFooTest3).eq(1);
+			});
+		});
+
+		describe("global event", () => {
+			it("should handle the event before unsubscribing", () => {
+				enum EventBus {
+					Foo,
+				}
+
+				interface IEventBuses {
+					[EventBus.Foo]: typeof Foo,
+				}
+
+				const excevent = new Excevent<IEventBuses>();
+
+				interface IFooEvents {
+					test (): any;
+					test3 (): any;
+					test2 (a: number, b: string, ...c: number[]): boolean;
+				}
+
+				class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
+				excevent.registerBus(EventBus.Foo, Foo);
+
+				const foo = new Foo();
+
+				let hitFooTest3 = 0;
+				foo.event.until(Foo, "test", subscriber => subscriber
+					.subscribe("test", () => hitFooTest3++));
+
+				foo.event.emit("test");
+				expect(hitFooTest3).eq(1);
+				foo.event.emit("test");
+				expect(hitFooTest3).eq(1);
+			});
+		});
+	});
+
 });
 
 describe("excevent", () => {
@@ -470,33 +528,101 @@ describe("excevent", () => {
 			new Foo().event.emit("test");
 			expect(test.hitFooTest).eq(5);
 
-			let hitFooTest2 = 0;
-			const subscriber = excevent.createSubscriber()
-				.register(foo, "test", () => hitFooTest2++);
-
-			foo.event.emit("test");
-			expect(hitFooTest2).eq(0);
-
-			subscriber.subscribe();
-			foo.event.emit("test");
-			expect(hitFooTest2).eq(1);
-
-			subscriber.unsubscribe();
-			foo.event.emit("test");
-			expect(hitFooTest2).eq(1);
-
-			// interface IBarEvents {
-			// 	testBar (thing: number): any;
-			// }
-
-			// class Bar extends EventEmitter.Host(excevent)<IBarEvents> { }
-
-			// foo.event.until("test", subscriber => subscriber
-			// 	.subscribe(EventBus.Foo, "test"));
-
-			// foo.event.until(Bar, "testBar", subscriber => subscriber
-			// 	.subscribe("test"))
-
 		});
+
+		it("inheritance", () => {
+			const excevent = new Excevent<{}>();
+			const EventHandler = excevent.getEventHandlerDecorator();
+
+			interface IFooEvents {
+				test (): any;
+				test3 (): any;
+				test2 (a: number, b: string, ...c: number[]): boolean;
+			}
+
+			class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
+
+			const foo = new Foo();
+
+			class Test {
+
+				public hitFooTest = 0;
+
+				@EventHandler(foo, "test")
+				protected onFooTest () {
+					this.hitFooTest++;
+				}
+			}
+
+			class Test2 extends Test {
+
+				public hitFooTest2 = 0;
+
+				@EventHandler(foo, "test3")
+				protected onFooTest3 () {
+					this.hitFooTest2++;
+					return true;
+				}
+			}
+
+			const test = new Test();
+			excevent.subscribe(test);
+
+			const test2 = new Test2();
+			excevent.subscribe(test2);
+
+			foo.event.emit("test");
+			foo.event.emit("test3");
+			expect(test.hitFooTest).eq(1);
+			expect(test2.hitFooTest).eq(1);
+			expect(test2.hitFooTest2).eq(1);
+
+			excevent.unsubscribe(test);
+			excevent.unsubscribe(test2);
+
+			foo.event.emit("test");
+			foo.event.emit("test3");
+			expect(test.hitFooTest).eq(1);
+			expect(test2.hitFooTest).eq(1);
+			expect(test2.hitFooTest2).eq(1);
+		});
+	});
+
+	it("GlobalEventSubscriber", () => {
+		enum EventBus {
+			Foo,
+		}
+
+		interface IEventBuses {
+			[EventBus.Foo]: typeof Foo,
+		}
+
+		const excevent = new Excevent<IEventBuses>();
+
+		interface IFooEvents {
+			test (): any;
+			test3 (): any;
+			test2 (a: number, b: string, ...c: number[]): boolean;
+		}
+
+		class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
+		excevent.registerBus(EventBus.Foo, Foo);
+
+		const foo = new Foo();
+
+		let hitFooTest2 = 0;
+		const subscriber = excevent.createSubscriber()
+			.register(foo, "test", () => hitFooTest2++);
+
+		foo.event.emit("test");
+		expect(hitFooTest2).eq(0);
+
+		subscriber.subscribe();
+		foo.event.emit("test");
+		expect(hitFooTest2).eq(1);
+
+		subscriber.unsubscribe();
+		foo.event.emit("test");
+		expect(hitFooTest2).eq(1);
 	});
 });
