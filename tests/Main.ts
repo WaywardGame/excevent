@@ -375,7 +375,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			excevent.registerBus(EventBus.Foo, Foo);
+			@Events.Bus(EventBus.Foo)
 			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
 
 			class Test {

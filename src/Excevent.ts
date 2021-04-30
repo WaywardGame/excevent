@@ -251,6 +251,14 @@ export default class Excevent<BUSES> {
 		};
 	}
 
+	/**
+	 * A decorator for classes that should emit events to an event bus
+	 * @param bus The bus to emit events to
+	 */
+	public Bus<BUS extends keyof BUSES> (bus: BUS) {
+		return (constructor: BUSES[BUS] extends Class<any> ? BUSES[BUS] : never) => {
+			this.registerBus(bus, constructor);
+		};
 	}
 }
 
