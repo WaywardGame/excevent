@@ -1,4 +1,4 @@
-import { EventBusOrHost, EventHandler, EventList, Events, EventSubscriptionRegistrations, EventSubscriptions, EventUnion, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
+import { EventBusOrHost, EventHandler, EventList, Events, EventSubscriptionRegistrations, EventSubscriptions, EventUnion, Host, HostInstance, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
 import PriorityMap from "./PriorityMap";
 
 type AnyFunction = (...args: any[]) => any;
@@ -245,7 +245,7 @@ export default class Excevent<BUSES> {
 	 * @param event The event to subscribe to
 	 * @param priority The priority of this handler compared to other handlers of the same event
 	 */
-	public Handler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<ON, Events<ON, BUSES>, EVENT>>) => void {
+	public Handler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<Host<ON, BUSES>>, Events<ON, BUSES>, EVENT>>) => void {
 		return <T extends { [key in P]: AnyFunction }, P extends string | number> (subscriberClass: T, property: P, descriptor: TypedPropertyDescriptor<any>) => {
 			registerHandlerProperty(subscriberClass.constructor, property as string, on, event as string, priority);
 		};

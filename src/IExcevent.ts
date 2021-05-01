@@ -45,7 +45,7 @@ export namespace EventSubscriptions {
 	}
 }
 
-export interface IEventApi<HOST, EVENTS, EVENT extends keyof EVENTS> extends IPriorityListMapApi {
+export interface IEventApi<HOST, EVENTS = Events<HOST>, EVENT extends keyof EVENTS = keyof EVENTS> extends IPriorityListMapApi {
 	readonly host: HOST;
 	readonly event: EVENT;
 	readonly index: number;
@@ -71,8 +71,11 @@ type Class<T> = { new(...args: any[]): T };
 export type EventHostOrClass<EVENTS> = IEventHost<EVENTS> | Class<IEventHost<EVENTS>>;
 type EventsOfHostOrClass<HOST> = HOST extends EventHostOrClass<infer EVENTS> ? EVENTS : never;
 export type EventBusOrHost<BUSES> = keyof BUSES | EventHostOrClass<EventsOfHostOrClass<BUSES[keyof BUSES]>>;
+export type Host<HOST, BUSES = null> =
+	HOST extends keyof BUSES ? BUSES[HOST] : HOST;
 export type Events<HOST, BUSES = null> =
-	EventsOfHostOrClass<HOST extends keyof BUSES ? BUSES[keyof BUSES] : HOST>;
+	EventsOfHostOrClass<Host<HOST, BUSES>>;
+export type HostInstance<HOST> = HOST extends Class<infer INSTANCE> ? INSTANCE : HOST;
 
 export interface IEventHostInternal<EVENTS> {
 	[SYMBOL_SUBSCRIPTIONS]: EventSubscriptions<any, EVENTS>;
