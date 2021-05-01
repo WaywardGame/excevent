@@ -201,7 +201,7 @@ describe("PriorityMap", () => {
 describe("Emitter", () => {
 	interface ITestEvents {
 		test (): any;
-		test3 (): any;
+		test3 (): number;
 		test2 (a: number, b: string, ...c: number[]): boolean;
 	}
 
@@ -247,7 +247,7 @@ describe("Emitter", () => {
 	describe("'query'", () => {
 		it("should return undefined when no subscriptions", () => {
 			const emitter = new EventEmitter<{}, ITestEvents>({});
-			expect(emitter.query("test")).undefined;
+			expect(emitter.query("test").get()).undefined;
 		});
 
 		it("should return undefined when all subs return undefined", () => {
@@ -255,7 +255,7 @@ describe("Emitter", () => {
 			emitter.subscribe("test", () => undefined);
 			emitter.subscribe("test", () => undefined);
 			emitter.subscribe("test", () => undefined);
-			expect(emitter.query("test")).undefined;
+			expect(emitter.query("test").get()).undefined;
 		});
 
 		it("should return the result of the first non-undefined subscription", () => {
@@ -265,8 +265,24 @@ describe("Emitter", () => {
 			emitter.subscribe("test", () => 1);
 			let encountered = false;
 			emitter.subscribe("test", () => { encountered = true; return 2; });
-			expect(emitter.query("test")).eq(1);
+			expect(emitter.query("test").get()).eq(1);
 			expect(encountered).false;
+		});
+
+		it("should should allow filtering the query with 'where'", () => {
+			const emitter = new EventEmitter<{}, ITestEvents>({});
+			emitter.subscribe("test3", () => 2);
+			emitter.subscribe("test3", () => 3);
+			emitter.subscribe("test3", () => 4);
+			expect(emitter.query("test3").where(value => value % 2).get()).eq(3);
+		});
+
+		it("should should allow filtering the query with 'get'", () => {
+			const emitter = new EventEmitter<{}, ITestEvents>({});
+			emitter.subscribe("test3", () => 2);
+			emitter.subscribe("test3", () => 3);
+			emitter.subscribe("test3", () => 4);
+			expect(emitter.query("test3").get(value => value % 2)).eq(3);
 		});
 
 	});

@@ -58,44 +58,66 @@ class EventEmitter<HOST, EVENTS, BUSES = null> {
 	}
 
 	public query<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
-		const handlersByPriority = this.getHandlerLists(event);
-		if (handlersByPriority.length === 0)
-			return undefined;
-
-		const api = this.createApi(event);
-
 		type Output = CoerceVoidToUndefined<EventReturn<EVENTS, EVENT>>;
-		let result: Output | undefined;
-		PriorityMap.mapAll(handlersByPriority, (api, handlersByType) => {
-			const mutableApi = (api as Mutable<typeof api>);
+		type Predicate = (output: Output) => any;
+		const predicates: Predicate[] = [];
 
-			for (const handler of handlersByType.handlers) {
-				mutableApi.index++;
-				const output = handler(api, ...args);
-				if (output !== undefined && !api.disregard) {
-					api.break = true;
-					result = output;
-					return;
-				}
-			}
+		return {
+			where (predicate: Predicate) {
+				predicates.push(predicate);
+				return this;
+			},
+			get: (predicate?: Predicate) => {
+				const handlersByPriority = this.getHandlerLists(event);
+				if (handlersByPriority.length === 0)
+					return undefined;
 
-			for (const [property, subscribers] of Object.entries(handlersByType.references)) {
-				for (const subscriber of subscribers) {
-					mutableApi.index++;
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-					const output = subscriber[property](api, ...args);
-					if (output !== undefined && !api.disregard) {
-						api.break = true;
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-						result = output;
-						return;
+				if (predicate)
+					predicates.push(predicate);
+
+				const api = this.createApi(event);
+
+				let result: Output | undefined;
+				PriorityMap.mapAll(handlersByPriority, (api, handlersByType) => {
+					const mutableApi = (api as Mutable<typeof api>);
+
+					NextHandler: for (const handler of handlersByType.handlers) {
+						mutableApi.index++;
+						const output = handler(api, ...args);
+						if (output !== undefined && !api.disregard) {
+							for (const predicate of predicates)
+								if (!predicate(output))
+									continue NextHandler;
+
+							api.break = true;
+							result = output;
+							return;
+						}
 					}
-				}
-			}
 
-		}, api);
+					for (const [property, subscribers] of Object.entries(handlersByType.references)) {
+						NextSubscriber: for (const subscriber of subscribers) {
+							mutableApi.index++;
+							// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+							const output = subscriber[property](api, ...args);
+							if (output !== undefined && !api.disregard) {
+								for (const predicate of predicates)
+									if (!predicate(output))
+										continue NextSubscriber;
 
-		return result;
+								api.break = true;
+								// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+								result = output;
+								return;
+							}
+						}
+					}
+
+				}, api);
+
+				return result;
+			},
+		};
 	}
 
 	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
