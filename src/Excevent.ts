@@ -245,7 +245,7 @@ export default class Excevent<BUSES> {
 	 * @param event The event to subscribe to
 	 * @param priority The priority of this handler compared to other handlers of the same event
 	 */
-	public Handler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<Host<ON, BUSES>>, Events<ON, BUSES>, EVENT>>) => void {
+	public Handler<ON extends EventBusOrHost<BUSES>, EVENT extends keyof Events<ON, BUSES>> (on: ON, event: EVENT, priority = 0): (host: any, property2: string | number, descriptor: TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<Host<ON, BUSES>>, Events<ON, BUSES>>>) => void {
 		return <T extends { [key in P]: AnyFunction }, P extends string | number> (subscriberClass: T, property: P, descriptor: TypedPropertyDescriptor<any>) => {
 			registerHandlerProperty(subscriberClass.constructor, property as string, on, event as string, priority);
 		};
