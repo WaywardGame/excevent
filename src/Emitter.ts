@@ -59,7 +59,8 @@ class EventEmitter<HOST, EVENTS, BUSES = null> {
 
 	public query<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
 		type Output = CoerceVoidToUndefined<EventReturn<EVENTS, EVENT>>;
-		type Predicate = (output: Output) => any;
+		type EnsuredOutput = Exclude<Output, undefined>;
+		type Predicate = (output: EnsuredOutput) => any;
 		const predicates: Predicate[] = [];
 
 		return {
@@ -86,7 +87,7 @@ class EventEmitter<HOST, EVENTS, BUSES = null> {
 						const output = handler(api, ...args);
 						if (output !== undefined && !api.disregard) {
 							for (const predicate of predicates)
-								if (!predicate(output))
+								if (!predicate(output as EnsuredOutput))
 									continue NextHandler;
 
 							api.break = true;
@@ -102,7 +103,7 @@ class EventEmitter<HOST, EVENTS, BUSES = null> {
 							const output = subscriber[property](api, ...args);
 							if (output !== undefined && !api.disregard) {
 								for (const predicate of predicates)
-									if (!predicate(output))
+									if (!predicate(output as EnsuredOutput))
 										continue NextSubscriber;
 
 								api.break = true;
