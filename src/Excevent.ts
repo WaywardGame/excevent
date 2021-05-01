@@ -1,8 +1,5 @@
-import { EventBusOrHost, EventHandler, EventList, Events, EventSubscriptionRegistrations, EventSubscriptions, EventUnion, Host, HostInstance, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS } from "./IExcevent";
+import { AnyFunction, Class, EventBusOrHost, EventHandler, EventList, Events, EventSubscriptionRegistrations, EventSubscriptions, EventUnion, Host, HostInstance, IEventHostInternal, IEventSubscriber, SYMBOL_EVENT_BUS_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTIONS, SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS, SYMBOL_SUBSCRIPTION_REGISTRATIONS, TypedPropertyDescriptorFunctionAnyNOfParams } from "./IExcevent";
 import PriorityMap from "./PriorityMap";
-
-type AnyFunction = (...args: any[]) => any;
-type Class<T> = { new(...args: any[]): T };
 
 interface IBus<BUSES, BUS extends keyof BUSES> {
 	host?: IEventHostInternal<Events<BUSES[BUS]>>;
@@ -296,35 +293,3 @@ function registerHandler (_subscriber: any, handler: AnyFunction, on: any, event
 	EventSubscriptions.getPriority(subscriptionsByPriority, priority)
 		.handlers.add(handler);
 }
-
-type ReturnTypeLenient<F extends AnyFunction> =
-	ReturnType<F> extends void ? Promise<void> : ReturnType<F>;
-
-type TypedPropertyDescriptorFunctionAnyNOfParams<F extends AnyFunction> =
-	FunctionAnyNOfParams<Parameters<F>, ReturnTypeLenient<F>, ReturnType<F>>;
-
-type FunctionAnyNOfParams<PARAMS extends any[], RETURN_LENIENT, RETURN> =
-	TypedPropertyDescriptor<(...args: PARAMS) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5], a6: PARAMS[6], a7: PARAMS[7], a8: PARAMS[8], a9: PARAMS[9]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5], a6: PARAMS[6], a7: PARAMS[7], a8: PARAMS[8]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5], a6: PARAMS[6], a7: PARAMS[7]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5], a6: PARAMS[6]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(a0: PARAMS[0]) => RETURN_LENIENT> |
-	TypedPropertyDescriptor<() => RETURN_LENIENT> |
-	TypedPropertyDescriptor<(...args: PARAMS) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5], a6: PARAMS[6], a7: PARAMS[7], a8: PARAMS[8], a9: PARAMS[9]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5], a6: PARAMS[6], a7: PARAMS[7], a8: PARAMS[8]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5], a6: PARAMS[6], a7: PARAMS[7]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5], a6: PARAMS[6]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4], a5: PARAMS[5]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3], a4: PARAMS[4]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2], a3: PARAMS[3]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1], a2: PARAMS[2]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0], a1: PARAMS[1]) => RETURN> |
-	TypedPropertyDescriptor<(a0: PARAMS[0]) => RETURN> |
-	TypedPropertyDescriptor<() => RETURN>;

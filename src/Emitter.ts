@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
 import Excevent from "./Excevent";
-import { EventBusOrHost, EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, IEventApi, IEventHostInternal } from "./IExcevent";
+import { EventBusOrHost, EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, HostInstance, IEventApi, IEventHostInternal, TypedPropertyDescriptorFunctionAnyNOfParams } from "./IExcevent";
 import PriorityMap from "./PriorityMap";
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
@@ -16,12 +16,30 @@ export interface IEventQueryBuilder<EVENTS, EVENT extends keyof EVENTS> {
 	get: (predicate?: ((output: EventOutputEnsured<EVENTS, EVENT>) => any) | undefined) => EventOutput<EVENTS, EVENT> | undefined;
 }
 
-class EventEmitter<HOST, EVENTS, BUSES = null> {
+const SYMBOL_OWN_SUBSCRIPTIONS = Symbol("EXCEVENT_OWN_SUBSCRIPTIONS");
+const SYMBOL_OWN_SET_CLASS = Symbol("EXCEVENT_OWN_SET_CLASS");
+interface IHostClass<HOST, EVENTS> {
+	[SYMBOL_OWN_SUBSCRIPTIONS]?: [event: keyof EVENTS, property: keyof HOST, priority: number][];
+	[SYMBOL_OWN_SET_CLASS]?: any;
+}
+
+export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 
 	private subscriptions: EventSubscriptions<HOST, EVENTS> = {};
 
 	// @ts-ignore
-	public constructor (private readonly host: HOST, private excevent?: Excevent<BUSES>) { }
+	public constructor (private readonly host: HOST, private excevent?: Excevent<BUSES>) {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+		const cls = (host as any).constructor as IHostClass<HOST, EVENTS>;
+		for (const [event, property, priority] of cls[SYMBOL_OWN_SUBSCRIPTIONS] ?? []) {
+			const subscriptions = EventSubscriptions.get(this.subscriptions, event);
+			const subscribedReferences = EventSubscriptions.getPriority(subscriptions, priority).references;
+			let subscribedInProperty = subscribedReferences[property];
+			if (!subscribedInProperty)
+				subscribedInProperty = subscribedReferences[property] = new Set();
+			subscribedInProperty.add(host);
+		}
+	}
 
 	public emit<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
 		const handlersByPriority = this.getHandlerLists(event);
@@ -303,15 +321,27 @@ class EventEmitter<HOST, EVENTS, BUSES = null> {
 	}
 }
 
-namespace EventEmitter {
-	export function Host<BUSES = null> (excevent?: Excevent<BUSES>) {
-		return class <EVENTS> {
-			public readonly event = new EventEmitter<this, EVENTS, BUSES>(this, excevent);
-		}
+export function EventHost<BUSES = null> (excevent?: Excevent<BUSES>) {
+	return class <EVENTS> {
+		public readonly event = new EventEmitter<this, EVENTS, BUSES>(this, excevent);
 	}
 }
 
-export default EventEmitter;
+export namespace EventHost {
+	export function Handler<EVENT extends string> (event: EVENT, priority = 0): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>>> : never) => void {
+		return (subscriber: any, property: any, descriptor: TypedPropertyDescriptor<any>) => {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+			const cls = subscriber.constructor as IHostClass<any, any>;
+			let registeredOwnHandlers = cls[SYMBOL_OWN_SUBSCRIPTIONS];
+			if (!registeredOwnHandlers || cls[SYMBOL_OWN_SET_CLASS] !== cls) {
+				registeredOwnHandlers = cls[SYMBOL_OWN_SUBSCRIPTIONS] = [];
+				cls[SYMBOL_OWN_SET_CLASS] = cls;
+			}
+
+			registeredOwnHandlers.push([event, property, priority]);
+		};
+	}
+}
 
 export interface IUntilSubscriber<HOST, EVENTS> {
 	subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;

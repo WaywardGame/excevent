@@ -1,6 +1,6 @@
 import chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import EventEmitter from "../build/Emitter";
+import EventEmitter, { EventHost } from "../build/Emitter";
 import Excevent from "../build/Excevent";
 import { IEventApi } from "../build/IExcevent";
 import PriorityMap from "../build/PriorityMap";
@@ -319,7 +319,7 @@ describe("Emitter", () => {
 					test2 (a: number, b: string, ...c: number[]): boolean;
 				}
 
-				class Foo extends EventEmitter.Host()<IFooEvents> { }
+				class Foo extends EventHost()<IFooEvents> { }
 				const foo = new Foo();
 
 				let hitFooTest3 = 0;
@@ -351,7 +351,7 @@ describe("Emitter", () => {
 					test2 (a: number, b: string, ...c: number[]): boolean;
 				}
 
-				class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
+				class Foo extends EventHost(excevent)<IFooEvents> { }
 				excevent.registerBus(EventBus.Foo, Foo);
 
 				const foo = new Foo();
@@ -372,7 +372,7 @@ describe("Emitter", () => {
 
 describe("excevent", () => {
 
-	describe("EventHandler", () => {
+	describe("Handler", () => {
 
 		it("event bus", () => {
 			enum EventBus {
@@ -392,7 +392,7 @@ describe("excevent", () => {
 			}
 
 			@Events.Bus(EventBus.Foo)
-			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
+			class Foo extends EventHost(Events)<IFooEvents> { }
 
 			class Test {
 
@@ -430,7 +430,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
+			class Foo extends EventHost(Events)<IFooEvents> { }
 
 			class Test {
 
@@ -465,7 +465,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
+			class Foo extends EventHost(Events)<IFooEvents> { }
 
 			const foo = new Foo();
 
@@ -510,7 +510,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
+			class Foo extends EventHost(Events)<IFooEvents> { }
 			Events.registerBus(EventBus.Foo, Foo);
 
 			const foo = new Foo();
@@ -551,7 +551,7 @@ describe("excevent", () => {
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
 
-			class Foo extends EventEmitter.Host(Events)<IFooEvents> { }
+			class Foo extends EventHost(Events)<IFooEvents> { }
 
 			const foo = new Foo();
 
@@ -599,6 +599,32 @@ describe("excevent", () => {
 		});
 	});
 
+	describe("OwnHandler", () => {
+		it("should autosubscribe on creation", () => {
+
+			interface IFooEvents {
+				test (): any;
+				test3 (): any;
+				test2 (a: number, b: string, ...c: number[]): boolean;
+			}
+
+			class Foo extends EventHost()<IFooEvents> {
+
+				public hitTest = 0;
+
+				@EventHost.Handler("test")
+				protected onTest () {
+					this.hitTest++;
+				}
+			}
+
+			const foo = new Foo();
+			expect(foo.hitTest).eq(0);
+			foo.event.emit("test");
+			expect(foo.hitTest).eq(1);
+		});
+	});
+
 	it("GlobalEventSubscriber", () => {
 		enum EventBus {
 			Foo,
@@ -616,7 +642,7 @@ describe("excevent", () => {
 			test2 (a: number, b: string, ...c: number[]): boolean;
 		}
 
-		class Foo extends EventEmitter.Host(excevent)<IFooEvents> { }
+		class Foo extends EventHost(excevent)<IFooEvents> { }
 		excevent.registerBus(EventBus.Foo, Foo);
 
 		const foo = new Foo();
