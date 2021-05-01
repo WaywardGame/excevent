@@ -4,9 +4,17 @@ import Excevent from "./Excevent";
 import { EventBusOrHost, EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, IEventApi, IEventHostInternal } from "./IExcevent";
 import PriorityMap from "./PriorityMap";
 
-type CoerceVoidToUndefined<T> = T extends void ? undefined : T;
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 type AnyFunction = (...args: any[]) => any;
+type CoerceVoidToUndefined<T> = T extends void ? undefined : T;
+
+export type EventOutput<EVENTS, EVENT extends keyof EVENTS> = CoerceVoidToUndefined<EventReturn<EVENTS, EVENT>>;
+export type EventOutputEnsured<EVENTS, EVENT extends keyof EVENTS> = Exclude<EventOutput<EVENTS, EVENT>, undefined>;
+
+export interface IEventQueryBuilder<EVENTS, EVENT extends keyof EVENTS> {
+	where: (predicate: (output: EventOutputEnsured<EVENTS, EVENT>) => any) => this;
+	get: (predicate?: ((output: EventOutputEnsured<EVENTS, EVENT>) => any) | undefined) => EventOutput<EVENTS, EVENT> | undefined;
+}
 
 class EventEmitter<HOST, EVENTS, BUSES = null> {
 
@@ -57,18 +65,18 @@ class EventEmitter<HOST, EVENTS, BUSES = null> {
 			.flat();
 	}
 
-	public query<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
-		type Output = CoerceVoidToUndefined<EventReturn<EVENTS, EVENT>>;
-		type EnsuredOutput = Exclude<Output, undefined>;
+	public query<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>): IEventQueryBuilder<EVENTS, EVENT> {
+		type Output = EventOutput<EVENTS, EVENT>;
+		type EnsuredOutput = EventOutputEnsured<EVENTS, EVENT>;
 		type Predicate = (output: EnsuredOutput) => any;
 		const predicates: Predicate[] = [];
 
 		return {
-			where (predicate: Predicate) {
+			where (predicate) {
 				predicates.push(predicate);
 				return this;
 			},
-			get: (predicate?: Predicate) => {
+			get: (predicate) => {
 				const handlersByPriority = this.getHandlerLists(event);
 				if (handlersByPriority.length === 0)
 					return undefined;
