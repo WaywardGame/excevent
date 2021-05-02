@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
 import Excevent from "./Excevent";
-import { EventBusOrHost, EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, HostInstance, IEventApi, IEventHostInternal, TypedPropertyDescriptorFunctionAnyNOfParams } from "./IExcevent";
+import { Class, EventBusOrHost, EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, HostInstance, IEventApi, IEventHostInternal, TypedPropertyDescriptorFunctionAnyNOfParams } from "./IExcevent";
 import PriorityMap from "./PriorityMap";
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
@@ -328,7 +328,16 @@ export function EventHost<BUSES = null> (excevent?: Excevent<BUSES>) {
 }
 
 export namespace EventHost {
-	export function Handler<EVENT extends string> (event: EVENT, priority = 0): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>>> : never) => void {
+	export function Handler<HOST, EVENT extends keyof Events<HOST>> (host: Class<HOST>, event: EVENT, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>>> : never) => void;
+	export function Handler<EVENT extends string> (event: EVENT, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>>> : never) => void;
+	export function Handler<EVENT extends string> (host: any, event?: EVENT | number, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>>> : never) => void {
+		if (typeof host === "string") {
+			priority = event as number | undefined;
+			event = host as EVENT;
+		}
+
+		priority ??= 0;
+
 		return (subscriber: any, property: any, descriptor: TypedPropertyDescriptor<any>) => {
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 			const cls = subscriber.constructor as IHostClass<any, any>;
@@ -338,7 +347,7 @@ export namespace EventHost {
 				cls[SYMBOL_OWN_SET_CLASS] = cls;
 			}
 
-			registeredOwnHandlers.push([event, property, priority]);
+			registeredOwnHandlers.push([event as EVENT, property, priority as number]);
 		};
 	}
 }

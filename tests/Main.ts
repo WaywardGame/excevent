@@ -616,12 +616,21 @@ describe("excevent", () => {
 				protected onTest () {
 					this.hitTest++;
 				}
+
+				public hit2Test = 0;
+
+				@EventHost.Handler(Foo, "test")
+				protected on2Test () {
+					this.hit2Test++;
+				}
 			}
 
 			const foo = new Foo();
 			expect(foo.hitTest).eq(0);
+			expect(foo.hit2Test).eq(0);
 			foo.event.emit("test");
 			expect(foo.hitTest).eq(1);
+			expect(foo.hit2Test).eq(1);
 		});
 	});
 
