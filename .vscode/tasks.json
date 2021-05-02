@@ -10,6 +10,19 @@
 			"type": "shell",
 			"command": "gulp watch",
 			"problemMatcher": []
+		},
+		{
+			"label": "publish",
+			"type": "shell",
+			"group": "build",
+			"command": "gulp compile-test",
+			"problemMatcher": []
+		},
+		{
+			"label": "publish",
+			"type": "shell",
+			"command": "gulp publish",
+			"problemMatcher": []
 		}
 	]
 }
