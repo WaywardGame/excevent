@@ -566,6 +566,7 @@ describe("excevent", () => {
 
 				const foo = new Foo();
 
+				@Events.Subscribe
 				class Test {
 
 					public hitFooTest = 0;
@@ -579,7 +580,6 @@ describe("excevent", () => {
 				}
 
 				const test = new Test();
-				Events.subscribe(test);
 
 				foo.event.emit("test");
 				new Foo().event.emit("test");
