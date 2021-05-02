@@ -257,6 +257,20 @@ export default class Excevent<BUSES> {
 			this.registerBus(bus, constructor);
 		};
 	}
+
+	/**
+	 * A decorator for classes that should automatically subscribe any registered event handlers in their instances
+	 */
+	public Subscribe<CLASS extends Class<any>> (constructor: CLASS) {
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
+		const excevent = this;
+		return class extends constructor {
+			constructor (...args: any[]) {
+				super(...args);
+				excevent.subscribe(this);
+			}
+		} as CLASS;
+	}
 }
 
 function registerHandlerProperty (_subscriber: any, property: string, on: any, event: string, priority: number) {

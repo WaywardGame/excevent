@@ -542,6 +542,58 @@ describe("excevent", () => {
 
 		});
 
+		describe("@Events.Subscriber", () => {
+
+			it("event bus, host class, and host instance", () => {
+				enum EventBus {
+					Foo,
+				}
+
+				interface IEventBuses {
+					[EventBus.Foo]: typeof Foo,
+				}
+
+				const Events = new Excevent<IEventBuses>();
+
+				interface IFooEvents {
+					test (): any;
+					test3 (): any;
+					test2 (a: number, b: string, ...c: number[]): boolean;
+				}
+
+				class Foo extends EventHost(Events)<IFooEvents> { }
+				Events.registerBus(EventBus.Foo, Foo);
+
+				const foo = new Foo();
+
+				class Test {
+
+					public hitFooTest = 0;
+
+					@Events.Handler(foo, "test")
+					@Events.Handler(Foo, "test")
+					@Events.Handler(EventBus.Foo, "test")
+					protected onFooTest () {
+						this.hitFooTest++;
+					}
+				}
+
+				const test = new Test();
+				Events.subscribe(test);
+
+				foo.event.emit("test");
+				new Foo().event.emit("test");
+				expect(test.hitFooTest).eq(5);
+
+				Events.unsubscribe(test);
+
+				foo.event.emit("test");
+				new Foo().event.emit("test");
+				expect(test.hitFooTest).eq(5);
+
+			});
+		});
+
 		it("inheritance", () => {
 			const Events = new Excevent<{}>();
 
