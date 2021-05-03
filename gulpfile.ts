@@ -67,5 +67,5 @@ new Task("publish", initBuildFolder)
 	.then("mocha")
 	.then("compile AMD", compileAMD)
 	.then("publish-main", NPM.publish("build"))
-	.then("publish-amd", NPM.publish("build/amd"))
+	.then("publish-amd", NPM.publish("build/amd", "amd"))
 	.create();
