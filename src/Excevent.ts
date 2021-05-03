@@ -264,12 +264,12 @@ export default class Excevent<BUSES> {
 	public Subscribe = <CLASS extends Class<any>> (constructor: CLASS) => {
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const excevent = this;
-		return class extends constructor {
+		return class extends (constructor as any as { new(...args: any[]): any }) {
 			constructor (...args: any[]) {
 				super(...args);
 				excevent.subscribe(this);
 			}
-		} as CLASS;
+		} as any as CLASS;
 	}
 }
 

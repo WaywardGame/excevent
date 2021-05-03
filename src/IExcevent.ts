@@ -2,7 +2,7 @@ import EventEmitter from "./Emitter";
 import PriorityMap, { IPriorityListMapApi } from "./PriorityMap";
 
 export type AnyFunction = (...args: any[]) => any;
-export type Class<T> = { new(...args: any[]): T };
+export type Class<T> = Function & { prototype: T };
 
 export type EventDefinition<EVENTS, EVENT extends keyof EVENTS> = Extract<EVENTS[EVENT], (...args: any[]) => any>;
 export type EventParameters<EVENTS, EVENT extends keyof EVENTS = keyof EVENTS> = Parameters<EventDefinition<EVENTS, EVENT>>;
