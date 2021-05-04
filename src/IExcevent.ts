@@ -130,9 +130,10 @@ export namespace IEventSubscriber {
 		if (!cls)
 			return [];
 
-		const s = getSubscriber(cls);
+		const s = cls as IEventSubscriber;
 
-		const result = [s[SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS]!];
+		const subscriptions = s[SYMBOL_SUBSCRIPTION_PROPERTY_REGISTRATIONS];
+		const result = subscriptions === undefined ? [] : [subscriptions];
 		if (typeof cls === "function")
 			result.push(...getRegisteredPropertySubscriptions(Object.getPrototypeOf(cls)));
 
@@ -143,9 +144,10 @@ export namespace IEventSubscriber {
 		if (!cls)
 			return [];
 
-		const s = getSubscriber(cls);
+		const s = cls as IEventSubscriber;
 
-		const result = [s[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!];
+		const subscriptions = s[SYMBOL_SUBSCRIPTION_REGISTRATIONS];
+		const result = subscriptions === undefined ? [] : [subscriptions];
 		if (typeof cls === "function")
 			result.push(...getRegisteredSubscriptions(Object.getPrototypeOf(cls)));
 
