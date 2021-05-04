@@ -16,6 +16,12 @@ export class GlobalEventSubscriber<BUSES> {
 
 	public constructor (private readonly excevent: Excevent<BUSES>) { }
 
+	public hasRegistrations () {
+		const subscriber = IEventSubscriber.getSubscriber(this);
+		const subscriptions = subscriber[SYMBOL_SUBSCRIPTION_REGISTRATIONS]!;
+		return subscriptions.size > 0;
+	}
+
 	public register<HOST, EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (host: HOST, events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
 	public register<HOST, EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (host: HOST, events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
 	public register (host: any, events: string | string[], priority: number | AnyFunction, ...handlers: AnyFunction[]) {
@@ -90,8 +96,6 @@ export default class Excevent<BUSES> {
 							subscribedInProperty.add(instance);
 						}
 					}
-
-
 				}
 			}
 		}

@@ -216,6 +216,8 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 			event = host;
 			host = undefined;
 
+			const subscriber = this.excevent?.createSubscriber();
+
 			const subscriptions: [host: any, event: string, priority: number, ...handlers: AnyFunction[]][] = [];
 			const untilSubscriber: IUntilThisSubscriber<BUSES> = {
 				subscribe: (host, event, priority, ...handlers) => {
@@ -227,13 +229,21 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 						priority = 0;
 					}
 
-					subscriptions.push([host, event as string, priority, ...handlers]);
+					if (typeof host === "object" && "event" in host) {
+						subscriptions.push([host, event as string, priority, ...handlers]);
+					} else {
+						if (subscriber)
+							subscriber.register(host, event, priority, ...handlers);
+						else
+							console.warn("Emitter", this, "has no reference to an Excevent instance, cannot use 'until' for event:", event, "on:", host);
+					}
+
 					return untilSubscriber;
 				},
 			};
 
 			initializer(untilSubscriber);
-			if (subscriptions.length > 0) {
+			if (subscriptions.length > 0 || subscriber?.hasRegistrations()) {
 				for (const [host, event, priority, ...handlers] of subscriptions) {
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 					if ("event" in host && host.event instanceof EventEmitter) {
@@ -252,10 +262,12 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 						}
 					}
 
+					subscriber?.unsubscribe();
 					this.unsubscribe(event as EventList<EVENTS>, -Infinity, unsubscribe);
 					api.disregard = true;
 				};
 
+				subscriber?.subscribe();
 				this.subscribe(event as EventList<EVENTS>, -Infinity, unsubscribe);
 			}
 

@@ -354,9 +354,49 @@ describe("Emitter", () => {
 
 				expect(indices).ordered.members([2, 0]);
 			});
+
+			it("should be able to subscribe to global events", () => {
+				enum EventBus {
+					Foo,
+				}
+
+				interface IEventBuses {
+					[EventBus.Foo]: typeof Foo,
+				}
+
+				const excevent = new Excevent<IEventBuses>();
+
+				interface IFooEvents {
+					test (): any;
+					test3 (): any;
+					test2 (a: number, b: string, ...c: number[]): boolean;
+				}
+
+				class Foo extends EventHost(excevent)<IFooEvents> { }
+				const foo = new Foo();
+				excevent.registerBus(EventBus.Foo, Foo);
+
+				let hitFooTest3 = 0;
+				foo.event.until("test", subscriber => subscriber
+					.subscribe(Foo, "test", () => hitFooTest3++));
+
+				foo.event.emit("test");
+				expect(hitFooTest3).eq(1);
+				foo.event.emit("test");
+				expect(hitFooTest3).eq(1);
+
+				hitFooTest3 = 0;
+				foo.event.until("test", subscriber => subscriber
+					.subscribe(EventBus.Foo, "test", () => hitFooTest3++));
+
+				foo.event.emit("test");
+				expect(hitFooTest3).eq(1);
+				foo.event.emit("test");
+				expect(hitFooTest3).eq(1);
+			});
 		});
 
-		describe("global event", () => {
+		describe("class event", () => {
 			it("should handle the event before unsubscribing", () => {
 				enum EventBus {
 					Foo,
