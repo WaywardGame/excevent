@@ -206,6 +206,9 @@ export default class Excevent<BUSES> {
 							subscribedHandlers?.delete(handler as any);
 							if (subscribedHandlers?.size === 0 && isEmpty(subscribedByType!.references)) {
 								subscriptions.remove(+priority);
+								if (!subscriptions.hasAny()) {
+									delete subscribeTo[event as keyof AllEvents];
+								}
 							}
 						}
 					}
