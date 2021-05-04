@@ -331,6 +331,29 @@ describe("Emitter", () => {
 				foo.event.emit("test");
 				expect(hitFooTest3).eq(1);
 			});
+
+			it("should unsubscribe the until event", () => {
+				interface IFooEvents {
+					test (): any;
+					test3 (): any;
+					test2 (a: number, b: string, ...c: number[]): boolean;
+				}
+
+				class Foo extends EventHost()<IFooEvents> { }
+				const foo = new Foo();
+
+				let indices: number[] = [];
+
+				foo.event.until("test", subscriber => subscriber
+					.subscribe(foo, "test", () => { }));
+
+				foo.event.subscribe("test", -Infinity, api => indices.push(api.index));
+
+				foo.event.emit("test");
+				foo.event.emit("test");
+
+				expect(indices).ordered.members([2, 0]);
+			});
 		});
 
 		describe("global event", () => {
@@ -364,6 +387,41 @@ describe("Emitter", () => {
 				expect(hitFooTest3).eq(1);
 				foo.event.emit("test");
 				expect(hitFooTest3).eq(1);
+			});
+
+			it("should unsubscribe the until event", () => {
+				enum EventBus {
+					Foo,
+				}
+
+				interface IEventBuses {
+					[EventBus.Foo]: typeof Foo,
+				}
+
+				const excevent = new Excevent<IEventBuses>();
+
+				interface IFooEvents {
+					test (): any;
+					test3 (): any;
+					test2 (a: number, b: string, ...c: number[]): boolean;
+				}
+
+				class Foo extends EventHost(excevent)<IFooEvents> { }
+				excevent.registerBus(EventBus.Foo, Foo);
+
+				const foo = new Foo();
+
+				let indices: number[] = [];
+
+				foo.event.until(Foo, "test", subscriber => subscriber
+					.subscribe("test", () => { }));
+
+				foo.event.subscribe("test", -Infinity, api => indices.push(api.index));
+
+				foo.event.emit("test");
+				foo.event.emit("test");
+
+				expect(indices).ordered.members([1, 0]);
 			});
 		});
 	});

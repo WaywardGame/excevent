@@ -242,7 +242,7 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 					}
 				}
 
-				this.subscribe(event as EventList<EVENTS>, -Infinity, (api: IEventApi<any, any, any>, _: any): any => {
+				const unsubscribe = (api: IEventApi<any, any, any>, _: any): any => {
 					// unsubscribe
 					for (const [host, event, priority, ...handlers] of subscriptions) {
 						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -252,8 +252,11 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 						}
 					}
 
+					this.unsubscribe(event as EventList<EVENTS>, -Infinity, unsubscribe);
 					api.disregard = true;
-				});
+				};
+
+				this.subscribe(event as EventList<EVENTS>, -Infinity, unsubscribe);
 			}
 
 			return this;
