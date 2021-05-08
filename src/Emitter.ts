@@ -147,8 +147,8 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 		};
 	}
 
-	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
-	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
 	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) {
 		if (typeof priority !== "number") {
 			if (priority !== undefined) {
@@ -165,11 +165,11 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 				subscribedHandlers.add(handler);
 		}
 
-		return this;
+		return this.host;
 	}
 
-	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
-	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
 	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) {
 		if (typeof priority !== "number") {
 			if (priority !== undefined) {
@@ -187,7 +187,7 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 					subscribedHandlers.delete(handler);
 		}
 
-		return this;
+		return this.host;
 	}
 
 	/**
@@ -207,8 +207,8 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 		});
 	}
 
-	public until<EVENT extends EventList<EVENTS>> (event: EVENT, initializer: (subscriber: IUntilThisSubscriber<BUSES>) => any): this;
-	public until<UNTIL_HOST extends (BUSES extends null ? never : EventBusOrHost<any>), UNTIL_EVENTS extends Events<UNTIL_HOST, BUSES>, EVENT extends EventList<UNTIL_EVENTS>> (host: UNTIL_HOST, event: EVENT, initializer: (subscriber: IUntilSubscriber<HOST, EVENTS>) => any): IUntilSubscriber<HOST, EVENTS>;
+	public until<EVENT extends EventList<EVENTS>> (event: EVENT, initializer: (subscriber: IUntilThisSubscriber<BUSES>) => any): HOST;
+	public until<UNTIL_HOST extends (BUSES extends null ? never : EventBusOrHost<any>), UNTIL_EVENTS extends Events<UNTIL_HOST, BUSES>, EVENT extends EventList<UNTIL_EVENTS>> (host: UNTIL_HOST, event: EVENT, initializer: (subscriber: IUntilSubscriber<HOST, EVENTS>) => any): HOST;
 	public until (host: any, event?: string | string[] | ((until: any) => any), initializer?: (until: any) => any) {
 		if (typeof event === "function") {
 			initializer = event;
@@ -312,7 +312,7 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 				.subscribe();
 		}
 
-		return this;
+		return this.host;
 	}
 
 	private getHandlerLists (event: keyof EVENTS) {
