@@ -336,7 +336,15 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 	}
 }
 
-export function EventHost<BUSES = null> (excevent?: Excevent<BUSES>) {
+interface IEventHost<EVENTS, BUSES = null> {
+	event: EventEmitter<this, EVENTS, BUSES>;
+}
+
+interface IEventHostClass<BUSES = null> {
+	new <EVENTS>(): IEventHost<EVENTS, BUSES>;
+}
+
+export function EventHost<BUSES = null> (excevent?: Excevent<BUSES>): IEventHostClass<BUSES> {
 	return class <EVENTS> {
 		public readonly event = new EventEmitter<this, EVENTS, BUSES>(this, excevent);
 	}
