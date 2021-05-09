@@ -351,9 +351,9 @@ export function EventHost<BUSES = null> (excevent?: Excevent<BUSES>): IEventHost
 }
 
 export namespace EventHost {
-	export function Handler<HOST, EVENT extends keyof Events<HOST>> (host: Class<HOST>, event: EVENT, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>>> : never) => void;
-	export function Handler<EVENT extends string> (event: EVENT, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>>> : never) => void;
-	export function Handler<EVENT extends string> (host: any, event?: EVENT | number, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>>> : never) => void {
+	export function Handler<HOST, EVENT extends keyof Events<HOST>> (host: Class<HOST>, event: EVENT, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>, EVENT>> : never) => void;
+	export function Handler<EVENT extends string> (event: EVENT, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>, EVENT>> : never) => void;
+	export function Handler<EVENT extends string> (host: any, event?: EVENT | number, priority?: number): <HOST>(host: HOST, property2: string | number, descriptor: EVENT extends keyof Events<HOST> ? TypedPropertyDescriptorFunctionAnyNOfParams<EventHandler<HostInstance<HOST>, Events<HOST>, EVENT>> : never) => void {
 		if (typeof host === "string") {
 			priority = event as number | undefined;
 			event = host as EVENT;
