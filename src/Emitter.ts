@@ -374,14 +374,19 @@ export namespace EventHost {
 		};
 	}
 
-	type WatchEventMethodKeys<T> = keyof { [P in keyof T as T[P] extends (value: any, property: string) => any ? P : T[P] extends (value: any) => any ? P : never]: any };
-	type WatchedPropertyMethodKeys<T, V> = keyof { [P in keyof T as T[P] extends V ? P : never]: any };
+	type WatchEventMethodKeys<T> = keyof { [P in keyof T as T[P] extends (value: any, property: string) => any ? P : T[P] extends (value: any) => any ? P : T[P] extends () => any ? P : never]: any };
+	type KeysWhereValue<T, V> = keyof { [P in keyof T as T[P] extends V ? P : never]: any };
+	type WatchedPropertyKeys<HOST, WATCH_EVENT> = Events<HOST> extends infer EVENTS ?
+		EventParameters<EVENTS, Extract<WATCH_EVENT, keyof EVENTS>> extends infer PARAMS ? PARAMS extends any[] ?
+		KeysWhereValue<HOST, PARAMS["length"] extends 0 ? any : PARAMS[0]>
+		: never : never : never;
+
 	const SYMBOL_PROPS_WATCHED = Symbol("WATCHED_PROP_STORE");
 	interface IWatchedProto {
 		[SYMBOL_PROPS_WATCHED]: Record<string, Set<string>>;
 	}
 
-	export function Emit<HOST, EVENT extends WatchEventMethodKeys<Events<HOST>>> (host: Class<HOST>, event: EVENT): <HOST>(host: HOST, property2: WatchedPropertyMethodKeys<HOST, EventParameters<Events<HOST>, Extract<EVENT, keyof Events<HOST>>>[0]>) => void;
+	export function Emit<HOST, EVENT extends WatchEventMethodKeys<Events<HOST>>> (host: Class<HOST>, event: EVENT): <HOST>(host: HOST, property2: WatchedPropertyKeys<HOST, EVENT>) => void;
 	export function Emit<EVENT extends string> (event: EVENT): <HOST>(host: HOST, property2: string | number) => void;
 	export function Emit<EVENT extends string> (host: any, event?: EVENT): <HOST>(host: HOST, property2: string | number | symbol) => void {
 		if (typeof host === "string")

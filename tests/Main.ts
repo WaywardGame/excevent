@@ -789,15 +789,18 @@ describe("excevent", () => {
 
 			interface IFooEvents {
 				test (param: number, prop: string): any;
+				test1 (param: number): any;
 				test3 (): any;
-				test2 (a: number, b: string, ...c: number[]): boolean;
+				test2 (a: number[]): boolean;
 			}
 
 			class Foo extends EventHost()<IFooEvents> {
 
 				@EventHost.Emit(Foo, "test")
-				// @ts-expect-error
+				@EventHost.Emit(Foo, "test1")
 				@EventHost.Emit(Foo, "test3")
+				// @ts-expect-error
+				@EventHost.Emit(Foo, "test2")
 				public mutableProp = 0;
 			}
 
