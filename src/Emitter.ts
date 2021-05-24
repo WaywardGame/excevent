@@ -373,6 +373,46 @@ export namespace EventHost {
 			registeredOwnHandlers.push([event as EVENT, property, priority as number]);
 		};
 	}
+
+	type NullaryMethodKeys<T> = keyof { [P in keyof T as T[P] extends () => any ? P : never]: any };
+	const SYMBOL_PROPS_WATCHED = Symbol("WATCHED_PROP_STORE");
+	interface IWatchedProto {
+		[SYMBOL_PROPS_WATCHED]: Record<string, Set<string>>;
+	}
+
+	export function Emit<HOST, EVENT extends NullaryMethodKeys<Events<HOST>>> (host: Class<HOST>, event: EVENT): <HOST>(host: HOST, property2: string | number) => void;
+	export function Emit<EVENT extends string> (event: EVENT): <HOST>(host: HOST, property2: string | number) => void;
+	export function Emit<EVENT extends string> (host: any, event?: EVENT): <HOST>(host: HOST, property2: string | number) => void {
+		if (typeof host === "string")
+			event = host as EVENT;
+
+		return (proto: any, property: any) => {
+			const watchedProto = proto as IWatchedProto;
+			watchedProto[SYMBOL_PROPS_WATCHED] ??= {};
+			const propStore = watchedProto[SYMBOL_PROPS_WATCHED];
+			let events = propStore[property as string];
+			if (!events) {
+				events = propStore[property as string] = new Set();
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+				const symbol = Symbol(`WATCHED_PROP_STORE:${property}`);
+				Object.defineProperty(proto, property, {
+					get () {
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+						return this[symbol];
+					},
+					set (value: any) {
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+						this[symbol] = value;
+						for (const event of events)
+							// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+							this.event?.emit(event);
+					},
+				})
+			}
+
+			events.add(event!);
+		};
+	}
 }
 
 export interface IUntilSubscriber<HOST, EVENTS> {

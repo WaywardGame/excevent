@@ -784,6 +784,32 @@ describe("excevent", () => {
 		});
 	});
 
+	describe("Watch", () => {
+		it("should emit events on prop change", () => {
+
+			interface IFooEvents {
+				test (): any;
+				test3 (): any;
+				test2 (a: number, b: string, ...c: number[]): boolean;
+			}
+
+			class Foo extends EventHost()<IFooEvents> {
+
+				@EventHost.Emit(Foo, "test")
+				// @ts-expect-error
+				@EventHost.Emit(Foo, "test2")
+				public mutableProp = 0;
+			}
+
+			const foo = new Foo();
+			let hitTest = 0;
+			foo.event.subscribe("test", () => hitTest++);
+			expect(hitTest).eq(0);
+			foo.mutableProp++;
+			expect(hitTest).eq(1);
+		});
+	});
+
 	it("GlobalEventSubscriber", () => {
 		enum EventBus {
 			Foo,

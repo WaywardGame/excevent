@@ -1,7 +1,7 @@
 {
 	"private": true,
 	"name": "@wayward/excevent",
-	"version": "0.5.3",
+	"version": "0.6.0",
 	"description": "A ridiculously powerful and easy-to-use event system. 🚀",
 	"license": "MIT",
 	"main": "Excevent.js",
