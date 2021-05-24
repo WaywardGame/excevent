@@ -374,15 +374,16 @@ export namespace EventHost {
 		};
 	}
 
-	type NullaryMethodKeys<T> = keyof { [P in keyof T as T[P] extends () => any ? P : never]: any };
+	type WatchEventMethodKeys<T> = keyof { [P in keyof T as T[P] extends (value: any, property: string) => any ? P : T[P] extends (value: any) => any ? P : never]: any };
+	type WatchedPropertyMethodKeys<T, V> = keyof { [P in keyof T as T[P] extends V ? P : never]: any };
 	const SYMBOL_PROPS_WATCHED = Symbol("WATCHED_PROP_STORE");
 	interface IWatchedProto {
 		[SYMBOL_PROPS_WATCHED]: Record<string, Set<string>>;
 	}
 
-	export function Emit<HOST, EVENT extends NullaryMethodKeys<Events<HOST>>> (host: Class<HOST>, event: EVENT): <HOST>(host: HOST, property2: string | number) => void;
+	export function Emit<HOST, EVENT extends WatchEventMethodKeys<Events<HOST>>> (host: Class<HOST>, event: EVENT): <HOST>(host: HOST, property2: WatchedPropertyMethodKeys<HOST, EventParameters<Events<HOST>, Extract<EVENT, keyof Events<HOST>>>[0]>) => void;
 	export function Emit<EVENT extends string> (event: EVENT): <HOST>(host: HOST, property2: string | number) => void;
-	export function Emit<EVENT extends string> (host: any, event?: EVENT): <HOST>(host: HOST, property2: string | number) => void {
+	export function Emit<EVENT extends string> (host: any, event?: EVENT): <HOST>(host: HOST, property2: string | number | symbol) => void {
 		if (typeof host === "string")
 			event = host as EVENT;
 
@@ -405,7 +406,7 @@ export namespace EventHost {
 						this[symbol] = value;
 						for (const event of events)
 							// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-							this.event?.emit(event);
+							this.event?.emit(event, value, property);
 					},
 				})
 			}

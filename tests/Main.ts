@@ -788,7 +788,7 @@ describe("excevent", () => {
 		it("should emit events on prop change", () => {
 
 			interface IFooEvents {
-				test (): any;
+				test (param: number, prop: string): any;
 				test3 (): any;
 				test2 (a: number, b: string, ...c: number[]): boolean;
 			}
@@ -797,17 +797,28 @@ describe("excevent", () => {
 
 				@EventHost.Emit(Foo, "test")
 				// @ts-expect-error
-				@EventHost.Emit(Foo, "test2")
+				@EventHost.Emit(Foo, "test3")
 				public mutableProp = 0;
 			}
 
 			const foo = new Foo();
 			let hitTest = 0;
-			foo.event.subscribe("test", () => hitTest++);
+			let gotValue: number | undefined;
+			let gotProp: string | undefined;
+			foo.event.subscribe("test", (api, value, property) => {
+				hitTest++;
+				gotValue = value;
+				gotProp = property;
+			});
 			expect(hitTest).eq(0);
 			foo.mutableProp++;
 			expect(hitTest).eq(1);
+			expect(foo.mutableProp).eq(1);
+			expect(gotValue).eq(1);
+			expect(gotProp).eq("mutableProp");
 		});
+
+		// TODO test if this works with subclasses
 	});
 
 	it("GlobalEventSubscriber", () => {
