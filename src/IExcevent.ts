@@ -1,4 +1,4 @@
-import EventEmitter from "./Emitter";
+import { EmitHelper } from "./Emitter";
 import PriorityMap, { IPriorityListMapApi } from "./PriorityMap";
 
 export type AnyFunction = (...args: any[]) => any;
@@ -66,13 +66,19 @@ export const SYMBOL_SUBSCRIPTIONS = Symbol("EXCEVENT_SUBSCRIPTIONS");
 export const SYMBOL_SUBSCRIPTIONS_SET_CLASS = Symbol("EXCEVENT_SUBSCRIPTIONS_SET_CLASS");
 export const SYMBOL_EVENT_BUS_SUBSCRIPTIONS = Symbol("EXCEVENT_EVENT_BUS_SUBSCRIPTIONS");
 
-export interface IEventHost<EVENTS> {
-	event: EventEmitter<this, EVENTS>;
+export interface IEventEmitter<HOST, EVENTS, BUSES> {
+	emit: EmitHelper<HOST, EVENTS, BUSES>;
 }
 
-export type EventHostOrClass<EVENTS> = IEventHost<EVENTS> | Class<IEventHost<EVENTS>>;
-type EventsOfHostOrClass<HOST> = HOST extends EventHostOrClass<infer EVENTS> ? EVENTS : never;
-export type EventBusOrHost<BUSES> = keyof BUSES | EventHostOrClass<EventsOfHostOrClass<BUSES[keyof BUSES]>>;
+export interface IEventHost<EVENTS, BUSES> {
+	event: IEventEmitter<this, EVENTS, BUSES>;
+}
+
+export type EventHostOrClass<EVENTS, BUSES> = IEventHost<EVENTS, BUSES> | Class<IEventHost<EVENTS, BUSES>>;
+export type EventsOfHostOrClass<HOST> = HOST extends { event: IEventEmitter<any, infer EVENTS, any> } ? EVENTS
+	: HOST extends { prototype: { event: IEventEmitter<any, infer EVENTS, any> } } ? EVENTS
+	: {};
+export type EventBusOrHost<BUSES> = keyof BUSES | EventHostOrClass<EventsOfHostOrClass<BUSES[keyof BUSES] | {}>, BUSES>;
 export type Host<HOST, BUSES = null> =
 	HOST extends keyof BUSES ? BUSES[HOST] : HOST;
 export type Events<HOST, BUSES = null> =

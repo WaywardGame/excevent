@@ -202,87 +202,93 @@ describe("Emitter", () => {
 	interface ITestEvents {
 		test (): any;
 		test3 (): number;
+		/**
+		 * hi there
+		 * @param a A number
+		 * @returns whether a thing is true
+		 */
 		test2 (a: number, b: string, ...c: number[]): boolean;
 	}
 
+
 	it("basic emit", () => {
 		const emitter = new EventEmitter<{}, ITestEvents>({});
-		expect(emitter.emit("test")).members([]);
-		expect(emitter.emit("test2", 1, "foo", 2, 3, 4, 5)).members([]);
+		expect(emitter.emit.test()).members([]);
+		expect(emitter.emit.test2(1, "foo", 2, 3, 4, 5)).members([]);
 	});
 
 	it("basic subscribe", () => {
 		const emitter = new EventEmitter<{}, ITestEvents>({});
-		emitter.subscribe("test", () => "hello world!");
-		expect(emitter.emit("test")).members(["hello world!"]);
+		emitter.subscribe.test(() => "hello world!");
+		expect(emitter.emit.test()).members(["hello world!"]);
 	});
 
 	it("should emit based on priority", () => {
 		const emitter = new EventEmitter<{}, ITestEvents>({});
-		emitter.subscribe("test", 2, () => 2);
-		emitter.subscribe("test", 1, () => 1);
-		emitter.subscribe("test", 3, () => 3);
-		expect(emitter.emit("test")).ordered.members([3, 2, 1]);
+		emitter.subscribe.test(2, () => 2);
+		emitter.subscribe.test(1, () => 1);
+		emitter.subscribe.test(3, () => 3);
+		expect(emitter.emit.test()).ordered.members([3, 2, 1]);
 	});
 
 	it("should be able to sub to multiple", () => {
 		const emitter = new EventEmitter<{}, ITestEvents>({});
-		emitter.subscribe(["test", "test3"], 2, () => 2);
-		emitter.subscribe("test", 1, () => 1);
-		emitter.subscribe("test", 3, () => 3);
-		expect(emitter.emit("test")).ordered.members([3, 2, 1]);
-		expect(emitter.emit("test3")).members([2]);
+		emitter.subscribeAll(["test", "test3"], 2, () => 2);
+		emitter.subscribe.test(1, () => 1);
+		emitter.subscribe.test(3, () => 3);
+		expect(emitter.emit.test()).ordered.members([3, 2, 1]);
+		expect(emitter.emit.test3()).members([2]);
 	});
 
 	it("should unsubscribe", () => {
 		const emitter = new EventEmitter<{}, ITestEvents>({});
-		emitter.subscribe("test", 2, () => 2);
+		emitter.subscribe.test(2, () => 2);
 		const sub1 = () => 1;
-		emitter.subscribe("test", 1, sub1);
-		emitter.subscribe("test", 3, () => 3);
-		emitter.unsubscribe("test", 1, sub1);
-		expect(emitter.emit("test")).ordered.members([3, 2]);
+		emitter.subscribe.test(1, sub1);
+		emitter.subscribe.test(3, () => 3);
+		emitter.unsubscribe.test(1, sub1);
+		expect(emitter.emit.test()).ordered.members([3, 2]);
 	});
 
 	describe("'query'", () => {
 		it("should return undefined when no subscriptions", () => {
 			const emitter = new EventEmitter<{}, ITestEvents>({});
-			expect(emitter.query("test").get()).undefined;
+			expect(emitter.query.test().get()).undefined;
 		});
 
 		it("should return undefined when all subs return undefined", () => {
 			const emitter = new EventEmitter<{}, ITestEvents>({});
-			emitter.subscribe("test", () => undefined);
-			emitter.subscribe("test", () => undefined);
-			emitter.subscribe("test", () => undefined);
-			expect(emitter.query("test").get()).undefined;
+			emitter.subscribe.test(() => undefined);
+			emitter.subscribe.test(() => undefined);
+			emitter.subscribe.test(() => undefined);
+			expect(emitter.query.test().get()).undefined;
 		});
 
 		it("should return the result of the first non-undefined subscription", () => {
 			const emitter = new EventEmitter<{}, ITestEvents>({});
-			emitter.subscribe("test", () => undefined);
-			emitter.subscribe("test", () => undefined);
-			emitter.subscribe("test", () => 1);
+			emitter.subscribe.test(() => undefined);
+			emitter.subscribe.test(() => undefined);
+			emitter.subscribe.test(() => 1);
 			let encountered = false;
-			emitter.subscribe("test", () => { encountered = true; return 2; });
-			expect(emitter.query("test").get()).eq(1);
+			emitter.subscribe.test(() => { encountered = true; return 2; });
+			expect(emitter.query.test().get()).eq(1);
 			expect(encountered).false;
 		});
 
 		it("should should allow filtering the query with 'where'", () => {
 			const emitter = new EventEmitter<{}, ITestEvents>({});
-			emitter.subscribe("test3", () => 2);
-			emitter.subscribe("test3", () => 3);
-			emitter.subscribe("test3", () => 4);
-			expect(emitter.query("test3").where(value => value % 2).get()).eq(3);
+			emitter.subscribe.test3(() => 2);
+			emitter.subscribe.test3(() => 3);
+			emitter.subscribe.test3(() => 4);
+			expect(emitter.query.test3().where(value => value % 2).get()).eq(3);
 		});
 
 		it("should should allow filtering the query with 'get'", () => {
 			const emitter = new EventEmitter<{}, ITestEvents>({});
-			emitter.subscribe("test3", () => 2);
-			emitter.subscribe("test3", () => 3);
-			emitter.subscribe("test3", () => 4);
-			expect(emitter.query("test3").get(value => value % 2)).eq(3);
+			emitter.subscribe.test3(() => 2);
+			emitter.subscribe.test3(() => 3);
+			emitter.subscribe.test3(() => 4);
+			expect(emitter.query.test3().get(value => value % 2)).eq(3);
 		});
 
 	});
@@ -292,8 +298,8 @@ describe("Emitter", () => {
 			const host = {};
 			const emitter = new EventEmitter<{}, ITestEvents>(host);
 			let savedApi: IEventApi<{}, ITestEvents, "test"> | undefined;
-			emitter.subscribe("test", api => savedApi = api);
-			emitter.emit("test");
+			emitter.subscribe.test(api => savedApi = api);
+			emitter.emit.test();
 			expect(savedApi).not.undefined;
 			expect(savedApi!.event).eq("test");
 			expect(savedApi!.index).eq(0);
@@ -303,10 +309,10 @@ describe("Emitter", () => {
 
 		it("should give an api object to event handlers", () => {
 			const emitter = new EventEmitter<{}, ITestEvents>({});
-			emitter.subscribe("test", api => api.index);
-			emitter.subscribe("test", api => api.index);
-			emitter.subscribe("test", api => api.index);
-			expect(emitter.emit("test")).ordered.members([0, 1, 2]);
+			emitter.subscribe.test(api => api.index);
+			emitter.subscribe.test(api => api.index);
+			emitter.subscribe.test(api => api.index);
+			expect(emitter.emit.test()).ordered.members([0, 1, 2]);
 		});
 	});
 
@@ -324,11 +330,11 @@ describe("Emitter", () => {
 
 				let hitFooTest3 = 0;
 				foo.event.until("test", subscriber => subscriber
-					.subscribe(foo, "test", () => hitFooTest3++));
+					.on(foo).subscribe.test(() => hitFooTest3++));
 
-				foo.event.emit("test");
+				foo.event.emit.test();
 				expect(hitFooTest3).eq(1);
-				foo.event.emit("test");
+				foo.event.emit.test();
 				expect(hitFooTest3).eq(1);
 			});
 
@@ -345,12 +351,12 @@ describe("Emitter", () => {
 				let indices: number[] = [];
 
 				foo.event.until("test", subscriber => subscriber
-					.subscribe(foo, "test", () => { }));
+					.on(foo).subscribe.test(() => { }));
 
-				foo.event.subscribe("test", -Infinity, api => indices.push(api.index));
+				foo.event.subscribe.test(-Infinity, api => indices.push(api.index));
 
-				foo.event.emit("test");
-				foo.event.emit("test");
+				foo.event.emit.test();
+				foo.event.emit.test();
 
 				expect(indices).ordered.members([2, 0]);
 			});
@@ -378,20 +384,20 @@ describe("Emitter", () => {
 
 				let hitFooTest3 = 0;
 				foo.event.until("test", subscriber => subscriber
-					.subscribe(Foo, "test", () => hitFooTest3++));
+					.on(Foo).subscribe.test(() => hitFooTest3++));
 
-				foo.event.emit("test");
+				foo.event.emit.test();
 				expect(hitFooTest3).eq(1);
-				foo.event.emit("test");
+				foo.event.emit.test();
 				expect(hitFooTest3).eq(1);
 
 				hitFooTest3 = 0;
 				foo.event.until("test", subscriber => subscriber
-					.subscribe(EventBus.Foo, "test", () => hitFooTest3++));
+					.on(EventBus.Foo).subscribe.test(() => hitFooTest3++));
 
-				foo.event.emit("test");
+				foo.event.emit.test();
 				expect(hitFooTest3).eq(1);
-				foo.event.emit("test");
+				foo.event.emit.test();
 				expect(hitFooTest3).eq(1);
 			});
 		});
@@ -423,9 +429,9 @@ describe("Emitter", () => {
 				foo.event.until(Foo, "test", subscriber => subscriber
 					.subscribe("test", () => hitFooTest3++));
 
-				foo.event.emit("test");
+				foo.event.emit.test();
 				expect(hitFooTest3).eq(1);
-				foo.event.emit("test");
+				foo.event.emit.test();
 				expect(hitFooTest3).eq(1);
 			});
 
@@ -456,10 +462,10 @@ describe("Emitter", () => {
 				foo.event.until(Foo, "test", subscriber => subscriber
 					.subscribe("test", () => { }));
 
-				foo.event.subscribe("test", -Infinity, api => indices.push(api.index));
+				foo.event.subscribe.test(-Infinity, api => indices.push(api.index));
 
-				foo.event.emit("test");
-				foo.event.emit("test");
+				foo.event.emit.test();
+				foo.event.emit.test();
 
 				expect(indices).ordered.members([1, 0]);
 			});
@@ -505,14 +511,14 @@ describe("excevent", () => {
 			const test = new Test();
 			Events.subscribe(test);
 
-			new Foo().event.emit("test");
-			new Foo().event.emit("test");
+			new Foo().event.emit.test();
+			new Foo().event.emit.test();
 			expect(test.hitFooTest).eq(2);
 
 			Events.unsubscribe(test);
 
-			new Foo().event.emit("test");
-			new Foo().event.emit("test");
+			new Foo().event.emit.test();
+			new Foo().event.emit.test();
 			expect(test.hitFooTest).eq(2);
 		});
 
@@ -543,14 +549,14 @@ describe("excevent", () => {
 			const test = new Test();
 			Events.subscribe(test);
 
-			new Foo().event.emit("test");
-			new Foo().event.emit("test");
+			new Foo().event.emit.test();
+			new Foo().event.emit.test();
 			expect(test.hitFooTest).eq(2);
 
 			Events.unsubscribe(test);
 
-			new Foo().event.emit("test");
-			new Foo().event.emit("test");
+			new Foo().event.emit.test();
+			new Foo().event.emit.test();
 			expect(test.hitFooTest).eq(2);
 		});
 
@@ -580,14 +586,14 @@ describe("excevent", () => {
 			const test = new Test();
 			Events.subscribe(test);
 
-			foo.event.emit("test");
-			new Foo().event.emit("test");
+			foo.event.emit.test();
+			new Foo().event.emit.test();
 			expect(test.hitFooTest).eq(1);
 
 			Events.unsubscribe(test);
 
-			foo.event.emit("test");
-			new Foo().event.emit("test");
+			foo.event.emit.test();
+			new Foo().event.emit.test();
 			expect(test.hitFooTest).eq(1);
 		});
 
@@ -628,14 +634,14 @@ describe("excevent", () => {
 			const test = new Test();
 			Events.subscribe(test);
 
-			foo.event.emit("test");
-			new Foo().event.emit("test");
+			foo.event.emit.test();
+			new Foo().event.emit.test();
 			expect(test.hitFooTest).eq(5);
 
 			Events.unsubscribe(test);
 
-			foo.event.emit("test");
-			new Foo().event.emit("test");
+			foo.event.emit.test();
+			new Foo().event.emit.test();
 			expect(test.hitFooTest).eq(5);
 
 		});
@@ -679,14 +685,14 @@ describe("excevent", () => {
 
 				const test = new Test();
 
-				foo.event.emit("test");
-				new Foo().event.emit("test");
+				foo.event.emit.test();
+				new Foo().event.emit.test();
 				expect(test.hitFooTest).eq(5);
 
 				Events.unsubscribe(test);
 
-				foo.event.emit("test");
-				new Foo().event.emit("test");
+				foo.event.emit.test();
+				new Foo().event.emit.test();
 				expect(test.hitFooTest).eq(5);
 
 			});
@@ -732,8 +738,8 @@ describe("excevent", () => {
 			const test2 = new Test2();
 			Events.subscribe(test2);
 
-			foo.event.emit("test");
-			foo.event.emit("test3");
+			foo.event.emit.test();
+			foo.event.emit.test3();
 			expect(test.hitFooTest).eq(1);
 			expect(test2.hitFooTest).eq(1);
 			expect(test2.hitFooTest2).eq(1);
@@ -741,8 +747,8 @@ describe("excevent", () => {
 			Events.unsubscribe(test);
 			Events.unsubscribe(test2);
 
-			foo.event.emit("test");
-			foo.event.emit("test3");
+			foo.event.emit.test();
+			foo.event.emit.test3();
 			expect(test.hitFooTest).eq(1);
 			expect(test2.hitFooTest).eq(1);
 			expect(test2.hitFooTest2).eq(1);
@@ -778,7 +784,7 @@ describe("excevent", () => {
 			const foo = new Foo();
 			expect(foo.hitTest).eq(0);
 			expect(foo.hit2Test).eq(0);
-			foo.event.emit("test");
+			foo.event.emit.test();
 			expect(foo.hitTest).eq(1);
 			expect(foo.hit2Test).eq(1);
 		});
@@ -805,20 +811,21 @@ describe("excevent", () => {
 			}
 
 			const foo = new Foo();
+			console.log(foo.mutableProp, foo, Object.getPrototypeOf(foo));
 			let hitTest = 0;
 			let gotValue: number | undefined;
 			let gotProp: string | undefined;
-			foo.event.subscribe("test", (api, value, property) => {
+			foo.event.subscribe.test((api, value, property) => {
 				hitTest++;
 				gotValue = value;
 				gotProp = property;
 			});
-			expect(hitTest).eq(0);
+			expect(hitTest).eq(0, "Did not start at 0");
 			foo.mutableProp++;
-			expect(hitTest).eq(1);
-			expect(foo.mutableProp).eq(1);
-			expect(gotValue).eq(1);
-			expect(gotProp).eq("mutableProp");
+			expect(hitTest).eq(1, "Was not hit exactly 1 time");
+			expect(foo.mutableProp).eq(1, "The prop was changed to an unexpected value");
+			expect(gotValue).eq(1, "The prop value passed to the event was incorrect");
+			expect(gotProp).eq("mutableProp", "The prop name passed to the event was incorrect");
 		});
 
 		// TODO test if this works with subclasses
@@ -850,15 +857,15 @@ describe("excevent", () => {
 		const subscriber = excevent.createSubscriber()
 			.register(foo, "test", () => hitFooTest2++);
 
-		foo.event.emit("test");
+		foo.event.emit.test();
 		expect(hitFooTest2).eq(0);
 
 		subscriber.subscribe();
-		foo.event.emit("test");
+		foo.event.emit.test();
 		expect(hitFooTest2).eq(1);
 
 		subscriber.unsubscribe();
-		foo.event.emit("test");
+		foo.event.emit.test();
 		expect(hitFooTest2).eq(1);
 	});
 });

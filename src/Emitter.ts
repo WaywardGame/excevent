@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
 import Excevent from "./Excevent";
-import { Class, EventBusOrHost, EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, HostInstance, IEventApi, IEventHostInternal, TypedPropertyDescriptorFunctionAnyNOfParams } from "./IExcevent";
+import { Class, EventBusOrHost, EventHandler, EventHandlersByPriority, EventList, EventParameters, EventReturn, Events, EventSubscriptions, EventUnion, HostInstance, IEventApi, IEventEmitter, IEventHostInternal, TypedPropertyDescriptorFunctionAnyNOfParams } from "./IExcevent";
 import PriorityMap from "./PriorityMap";
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
@@ -16,6 +16,17 @@ export interface IEventQueryBuilder<EVENTS, EVENT extends keyof EVENTS> {
 	get: (predicate?: ((output: EventOutputEnsured<EVENTS, EVENT>) => any) | undefined) => EventOutput<EVENTS, EVENT> | undefined;
 }
 
+export type EmitHelper<HOST, EVENTS, BUSES> = { [EVENT in keyof EVENTS]: (...args: EventParameters<EVENTS, EVENT>) => EventReturn<EVENTS, EVENT>[] };
+export type QueryHelper<HOST, EVENTS, BUSES> = { [EVENT in keyof EVENTS]: (...args: EventParameters<EVENTS, EVENT>) => IEventQueryBuilder<EVENTS, EVENT> };
+export type SubscribeHelper<HOST, EVENTS> = { [EVENT in keyof EVENTS]: {
+	(...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+	(priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+} };
+export type UnsubscribeHelper<HOST, EVENTS> = { [EVENT in keyof EVENTS]: {
+	(...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+	(priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+} };
+
 const SYMBOL_OWN_SUBSCRIPTIONS = Symbol("EXCEVENT_OWN_SUBSCRIPTIONS");
 const SYMBOL_OWN_SET_CLASS = Symbol("EXCEVENT_OWN_SET_CLASS");
 interface IHostClass<HOST, EVENTS> {
@@ -23,7 +34,7 @@ interface IHostClass<HOST, EVENTS> {
 	[SYMBOL_OWN_SET_CLASS]?: any;
 }
 
-export default class EventEmitter<HOST, EVENTS, BUSES = null> {
+export default class EventEmitter<HOST, EVENTS, BUSES = null> implements IEventEmitter<HOST, EVENTS, BUSES> {
 
 	private subscriptions: EventSubscriptions<HOST, EVENTS> = {};
 
@@ -41,7 +52,20 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 		}
 	}
 
-	public emit<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>) {
+	public readonly emit = new Proxy({}, {
+		apply: (target, thisArg, args) => {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+			return (this.emitInternal as any)(...args);
+		},
+		get: (target, _property) => {
+			const property = _property as keyof EVENTS;
+			return (...args: any[]) => this.emitInternal(property, ...args as never);
+		},
+	}) as EmitHelper<HOST, EVENTS, BUSES>/* & {
+		<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>): EventReturn<EVENTS, EVENT>[];
+	}*/;
+
+	private emitInternal<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>): EventReturn<EVENTS, EVENT>[] {
 		const handlersByPriority = this.getHandlerLists(event);
 		if (handlersByPriority.length === 0)
 			return [];
@@ -83,7 +107,20 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 			.flat();
 	}
 
-	public query<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>): IEventQueryBuilder<EVENTS, EVENT> {
+	public readonly query = new Proxy({}, {
+		apply: (target, thisArg, args) => {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+			return (this.queryInternal as any)(...args);
+		},
+		get: (target, _property) => {
+			const property = _property as keyof EVENTS;
+			return (...args: any[]) => this.queryInternal(property, ...args as never);
+		},
+	}) as QueryHelper<HOST, EVENTS, BUSES>/* & {
+		<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>): IEventQueryBuilder<EVENTS, EVENT>;
+	}*/;
+
+	private queryInternal<EVENT extends keyof EVENTS> (event: EVENT, ...args: EventParameters<EVENTS, EVENT>): IEventQueryBuilder<EVENTS, EVENT> {
 		type Output = EventOutput<EVENTS, EVENT>;
 		type EnsuredOutput = EventOutputEnsured<EVENTS, EVENT>;
 		type Predicate = (output: EnsuredOutput) => any;
@@ -147,9 +184,22 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 		};
 	}
 
-	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
-	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
-	public subscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) {
+	public readonly subscribe = new Proxy({}, {
+		apply: (target, thisArg, args) => {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+			return (this.subscribeAll as any)(...args);
+		},
+		get: (target, _property) => {
+			const property = _property as keyof EVENTS;
+			return (priority: number | AnyFunction, ...handlers: AnyFunction[]) => this.subscribeAll(property, priority as number, ...handlers);
+		},
+	}) as SubscribeHelper<HOST, EVENTS>/* & {
+		
+	}*/;
+
+	public subscribeAll<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+	public subscribeAll<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+	public subscribeAll<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) {
 		if (typeof priority !== "number") {
 			if (priority !== undefined) {
 				handlers.push(priority);
@@ -168,9 +218,20 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 		return this.host;
 	}
 
-	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
-	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
-	public unsubscribe<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) {
+	public readonly unsubscribe = new Proxy({}, {
+		apply: (target, thisArg, args) => {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+			return (this.unsubscribeAll as any)(...args);
+		},
+		get: (target, _property) => {
+			const property = _property as keyof EVENTS;
+			return (priority: number | AnyFunction, ...handlers: AnyFunction[]) => this.unsubscribeAll(property, priority as number, ...handlers);
+		},
+	}) as UnsubscribeHelper<HOST, EVENTS>;
+
+	public unsubscribeAll<EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+	public unsubscribeAll<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): HOST;
+	public unsubscribeAll<EVENT extends EventList<EVENTS>> (events: EVENT, priority: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) {
 		if (typeof priority !== "number") {
 			if (priority !== undefined) {
 				handlers.push(priority);
@@ -192,18 +253,18 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 
 	/**
 	 * Returns a promise that will be resolved when any of the given events are emitted on this object.
-	 * @param events The events to resolve the promise on.
+	 * @param event The events to resolve the promise on.
 	 * @param priority The priority of waiting for the given events, compared to other event handlers. Defaults to `-Infinity`
 	 */
-	public async waitFor<EVENT extends EventList<EVENTS>> (events: EVENT, priority = -Infinity) {
+	public async waitFor<EVENT extends EventList<EVENTS>> (event: EVENT, priority = -Infinity) {
 		return new Promise<EventParameters<EVENTS, EventUnion<EVENTS, EVENT>>>(resolve => {
 			const realHandler = (api: IEventApi<HOST, EVENTS, keyof EVENTS>, ...args: any[]): any => {
-				this.unsubscribe(events, priority, realHandler);
+				this.unsubscribeAll(event, priority, realHandler);
 				resolve(args as any);
 				api.disregard = true;
 			};
 
-			this.subscribe(events, priority, realHandler);
+			this.subscribeAll(event, priority, realHandler);
 		});
 	}
 
@@ -220,25 +281,41 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 
 			const subscriptions: [host: any, event: string, priority: number, ...handlers: AnyFunction[]][] = [];
 			const untilSubscriber: IUntilThisSubscriber<BUSES> = {
-				subscribe: (host, event, priority, ...handlers) => {
-					if (typeof priority !== "number") {
-						if (priority !== undefined) {
-							handlers.push(priority);
+				on<HOST> (host: HOST) {
+					const subscribe = <EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (event: EVENT, priority?: number | EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]) => {
+						if (typeof priority !== "number") {
+							if (priority !== undefined) {
+								handlers.push(priority);
+							}
+
+							priority = 0;
 						}
 
-						priority = 0;
-					}
+						if (typeof host === "object" && "event" in host) {
+							subscriptions.push([host, event as string, priority, ...handlers]);
+						} else {
+							if (subscriber)
+								subscriber.register(host as never, event, priority, ...handlers);
+							else
+								console.warn("Emitter", this, "has no reference to an Excevent instance, cannot use 'until' for event:", event, "on:", host);
+						}
 
-					if (typeof host === "object" && "event" in host) {
-						subscriptions.push([host, event as string, priority, ...handlers]);
-					} else {
-						if (subscriber)
-							subscriber.register(host, event, priority, ...handlers);
-						else
-							console.warn("Emitter", this, "has no reference to an Excevent instance, cannot use 'until' for event:", event, "on:", host);
-					}
+						return untilSubscriber;
+					};
 
-					return untilSubscriber;
+					return {
+						subscribe: new Proxy({}, {
+							apply: (target, thisArg, args) => {
+								// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+								return (subscribe as any)(...args);
+							},
+							get: (target, _property) => {
+								const property = _property as keyof Events<HOST, BUSES>;
+								return (priority: number | AnyFunction, ...handlers: AnyFunction[]) => subscribe(property, priority, ...handlers);
+							},
+						}),
+						subscribeAll: subscribe,
+					} as any;
 				},
 			};
 
@@ -248,27 +325,27 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 					if ("event" in host && host.event instanceof EventEmitter) {
 						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-						host.event.subscribe(event, priority, ...handlers);
+						(host.event as EventEmitter<any, any>).subscribeAll(event, priority, ...handlers);
 					}
 				}
 
-				const unsubscribe = (api: IEventApi<any, any, any>, _: any): any => {
+				const unsubscribe = (api: IEventApi<any, any, any>, ...args: any[]): any => {
 					// unsubscribe
 					for (const [host, event, priority, ...handlers] of subscriptions) {
 						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 						if ("event" in host && host.event instanceof EventEmitter) {
 							// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-							host.event.unsubscribe(event, priority, ...handlers);
+							(host.event as EventEmitter<any, any>).unsubscribeAll(event, priority, ...handlers);
 						}
 					}
 
 					subscriber?.unsubscribe();
-					this.unsubscribe(event as EventList<EVENTS>, -Infinity, unsubscribe);
+					this.unsubscribeAll(event as EventList<EVENTS>, -Infinity, unsubscribe);
 					api.disregard = true;
 				};
 
 				subscriber?.subscribe();
-				this.subscribe(event as EventList<EVENTS>, -Infinity, unsubscribe);
+				this.subscribeAll(event as EventList<EVENTS>, -Infinity, unsubscribe);
 			}
 
 			return this;
@@ -298,7 +375,7 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 			}
 
 			for (const [event, priority, ...handlers] of subscriptions)
-				this.subscribe(event as any, priority, ...handlers);
+				this.subscribeAll(event as any, priority, ...handlers);
 
 			const subscriber = this.excevent.createSubscriber()
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
@@ -306,7 +383,7 @@ export default class EventEmitter<HOST, EVENTS, BUSES = null> {
 					// unsubscribe
 					subscriber.unsubscribe();
 					for (const [event, priority, ...handlers] of subscriptions)
-						this.unsubscribe(event as any, priority, ...handlers);
+						this.unsubscribeAll(event as any, priority, ...handlers);
 					api.disregard = true;
 				})
 				.subscribe();
@@ -399,21 +476,25 @@ export namespace EventHost {
 			let events = propStore[property as string];
 			if (!events) {
 				events = propStore[property as string] = new Set();
+				console.log(property, proto, events);
 				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 				const symbol = Symbol(`WATCHED_PROP_STORE:${property}`);
-				Object.defineProperty(proto, property, {
-					get () {
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-						return this[symbol];
-					},
-					set (value: any) {
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-						this[symbol] = value;
-						for (const event of events)
-							// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-							this.event?.emit(event, value, property);
-					},
-				})
+				(events as any).init = () => {
+					Object.defineProperty(proto, property, {
+						get () {
+							// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+							return this[symbol];
+						},
+						set (value: any) {
+							console.log("set");
+							// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+							this[symbol] = value;
+							for (const event of events)
+								// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+								this.event?.emit(event, value, property);
+						},
+					})
+				};
 			}
 
 			events.add(event!);
@@ -427,6 +508,11 @@ export interface IUntilSubscriber<HOST, EVENTS> {
 }
 
 export interface IUntilThisSubscriber<BUSES> {
-	subscribe<HOST, EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (host: HOST, events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
-	subscribe<HOST, EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (host: HOST, events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): this;
+	on<HOST> (host: HOST): this extends infer THIS ? {
+		subscribe: SubscribeHelper<HOST, Events<HOST, BUSES>>;
+		subscribeAll: {
+			<EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (events: EVENT, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): THIS;
+			<EVENTS extends Events<HOST, BUSES>, EVENT extends EventList<EVENTS>> (events: EVENT, priority: number, ...handlers: EventHandler<HOST, EVENTS, EventUnion<EVENTS, EVENT>>[]): THIS;
+		};
+	} : never;
 }
